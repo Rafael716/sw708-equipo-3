@@ -16,6 +16,13 @@
 
 ## Integrante 1:
 
+* Paso 1:
+
+![Paso 1](capturas/p1-jdk-olivos.jpeg)
+
+
+
+
 --- 
 
 ## Integrante 2: Romel Rodrigo Chumpitaz Flores
