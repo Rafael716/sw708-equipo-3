@@ -12,6 +12,10 @@
 
 ![Paso 5](capturas/p5-IDE.png)
 
+* Paso 6:
+
+![Paso 6](capturas/p6-navegador.png)
+
 ---
 
 ## Integrante 1:
