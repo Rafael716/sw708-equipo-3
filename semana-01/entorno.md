@@ -20,7 +20,9 @@
 
 ![Paso 1](capturas/p1-jdk-olivos.jpeg)
 
+* Paso 3:
 
+![Paso 3](capturas/p3-maven-olivos.jpeg)
 
 
 --- 
