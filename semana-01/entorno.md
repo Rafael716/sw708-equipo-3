@@ -6,15 +6,15 @@
 
 ## Integrante 2: Romel Rodrigo Chumpitaz Flores
 
-![Paso 1](capturas/p1-jdk-chumpitaz.png)
+![Paso 1](capturas/p1-jdk-chumpitaz.PNG)
 
 * Paso 3:
 
-![Paso 3](capturas/p3-maven-chumpitaz.png)
+![Paso 3](capturas/p3-maven-chumpitaz.PNG)
 
 * Paso 5:
 
-![Paso 5](capturas/p5-build-chumpitaz.png)
+![Paso 5](capturas/p5-build-chumpitaz.PNG)
 
 ---
 
