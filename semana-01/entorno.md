@@ -2,8 +2,23 @@
 
 > [!NOTE]
 > Las capturas son individuales de la configuración de cada integrante del grupo.
+>
 
-## Integrante 1: David Luza Ccorimanya
+## Integrante 2: Romel Rodrigo Chumpitaz Flores
+
+![Paso 1](capturas/p1-jdk-chumpitaz.png)
+
+* Paso 3:
+
+![Paso 3](capturas/p3-maven-chumpitaz.png)
+
+* Paso 5:
+
+![Paso 5](capturas/p5-build-chumpitaz.png)
+
+---
+
+## Integrante 3: David Luza Ccorimanya
 
 * Paso 1:
 
@@ -18,8 +33,6 @@
 ![Paso 5](capturas/p5-build-luza.png)
 
 ---
-
-## Integrante 2:
 
 ## Integrante 5: 
 
