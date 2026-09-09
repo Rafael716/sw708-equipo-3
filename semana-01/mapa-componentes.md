@@ -45,6 +45,7 @@ CREATE TABLE owners (
 
 ## Mapa de componentes
 
+![Diagrama de componentes](diagrama.jpg)
 
 ### Preguntas
 
