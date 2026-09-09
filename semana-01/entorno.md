@@ -1,6 +1,6 @@
 # Entorno de Configuración del Proyecto
 
-[!NOTE]
+> [!NOTE]
 > Las capturas son individuales de la configuración de cada integrante del grupo.
 
 ## Integrante 1: David Luza Ccorimanya
