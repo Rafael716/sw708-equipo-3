@@ -20,6 +20,8 @@
 
 ## Integrante 2: Romel Rodrigo Chumpitaz Flores
 
+* Paso 1:
+
 ![Paso 1](capturas/p1-jdk-chumpitaz.PNG)
 
 * Paso 3:
