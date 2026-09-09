@@ -1,10 +1,11 @@
 # Grupo 3 - Arquitectura de Soluciones
 
-Aplicacion: https://github.com/laurent22/joplin
+Repositorio a analizar: [Link](https://github.com/spring-projects/spring-petclinic)
 
-Integrantes:
-1. Rafael Adriano Olivos Gallardo
-2. Romel Rodrigo Chumpitaz Flores
-3. David Luza Ccorimanya
-4. Henry Javier Medina Malpartida
-5. Pablo Antonio Muñoz Bolaños
+| Integrantes | Codigo |
+| -- | -- |
+| Rafael Adriano Olivos Gallardo | |
+| Romel Rodrigo Chumpitaz Flores | |
+| David Luza Ccorimanya | 20232595H | 
+| Henry Javier Medina Malpartida | |
+| Pablo Antonio Muñoz Bolaños | |
