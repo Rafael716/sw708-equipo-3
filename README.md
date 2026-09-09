@@ -4,8 +4,8 @@ Repositorio a analizar: [Link](https://github.com/spring-projects/spring-petclin
 
 | Integrantes | Codigo |
 | -- | -- |
-| Rafael Adriano Olivos Gallardo | |
-| Romel Rodrigo Chumpitaz Flores | 20231014A |
-| David Luza Ccorimanya | 20232595H | 
-| Henry Javier Medina Malpartida | |
-| Pablo Antonio Muñoz Bolaños | |
+| 1. Rafael Adriano Olivos Gallardo | |
+| 2. Romel Rodrigo Chumpitaz Flores | 20231014A |
+| 3. David Luza Ccorimanya | 20232595H | 
+| 4. Henry Javier Medina Malpartida | |
+| 5. Pablo Antonio Muñoz Bolaños | 20242090F |

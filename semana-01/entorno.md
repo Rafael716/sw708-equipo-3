@@ -20,3 +20,17 @@
 ---
 
 ## Integrante 2:
+
+## Integrante 5: 
+
+* Paso 1: 
+
+![Paso 1](capturas/p1-jdk-muñoz.png)
+
+* Paso 3:
+
+![Paso 3](capturas/p3-maven-muñoz.png)
+
+* Paso 5:
+
+![Paso 5](capturas/p5-build-muñoz.png)
