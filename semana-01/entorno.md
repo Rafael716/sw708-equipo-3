@@ -20,10 +20,15 @@
 
 ![Paso 1](capturas/p1-jdk-olivos.jpeg)
 
+
 * Paso 3:
 
 ![Paso 3](capturas/p3-maven-olivos.jpeg)
 
+
+* Paso 5:
+
+![Paso 5](capturas/p5-build-olivos.jpeg)
 
 --- 
 
