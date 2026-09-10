@@ -20,6 +20,25 @@
 
 ## Integrante 1:
 
+* Paso 1:
+
+![Paso 1](capturas/p1-jdk-olivos.jpeg)
+
+
+* Paso 3:
+
+![Paso 3](capturas/p3-maven-olivos.jpeg)
+
+
+* Paso 5:
+
+![Paso 5](capturas/p5-build-olivos.jpeg)
+
+
+* Paso 6
+
+![Paso 6](capturas/p6-navegador-olivos.jpeg)
+
 --- 
 
 ## Integrante 2: Romel Rodrigo Chumpitaz Flores
