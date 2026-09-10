@@ -4,9 +4,9 @@
 
 | Paquete | Clases | Responsabilidad | Depende de |
 | -- | -- | -- | -- |
-| model | BaseEntity, NamedEntity, Person | Representa las entidades de la base de datos. | No tiene dependencias. |
-| owner | 11 clases | Controla las operaciones CRUD de los dueños. | `model` |
-| vet | 5 clases | Controla las operaciones CRUD de los veterinarios. | `model` |
+| model | BaseEntity, NamedEntity, Person | Representa las entidades y sus características comunes del dominio.	 | No tiene dependencias. |
+| owner | 11 clases | Representar al propietario y gestionar sus mascotas y visitas. | `model` |
+| vet | 5 clases | Gestionar la información de los veterinarios, sus especialidades y su consulta mediante la aplicación web. | `model` |
 | system | 4 clases | Controla la configuración y arranque de la aplicación. | No tiene dependencias. |
 | (raiz) | PetClinicApplication, PetClinicRuntimeHints | Arranca la aplicación y configura los runtime hints. | Depende de `model`, `owner`, `vet`. |
 
