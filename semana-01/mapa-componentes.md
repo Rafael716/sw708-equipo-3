@@ -10,6 +10,33 @@
 | system | 4 clases | Controla la configuración y arranque de la aplicación. | No tiene dependencias. |
 | (raiz) | PetClinicApplication, PetClinicRuntimeHints | Arranca la aplicación y configura los runtime hints. | Depende de `model`, `owner`, `vet`. |
 
+
+### Roles en `owner`
+
+- **Web:** Reciben y gestionan las peticiones HTTP.
+  - `OwnerController`, `PetController`, `VisitController`
+
+- **Acceso a datos:** Consultan y gestionan datos de la base de datos.
+  - `OwnerRepository`, `PetTypeRepository`
+
+- **Negocio:** Representan las entidades principales del sistema.
+  - `Owner`, `Pet`, `PetType`, `Visit`
+
+- **Apoyo:** Validan datos y convierten información.
+  - `PetValidator`, `PetTypeFormatter`
+
+### ¿Por qué `model` no depende de nadie y `owner` depende de `model`?
+
+`model` contiene clases base e independientes que definen características comunes del dominio.
+
+`owner` utiliza esas clases para construir sus propias entidades, por eso depende de `model`.
+
+En otras palabras, la dependencia va de lo específico a lo general:
+
+`owner` → `model`
+
+y no al revés.
+
 ## Flujo: ficha de un dueño
 
 1. Iniciamos con la clase `OwnerController`, se encuentra el método dentro del archivo `~/src/main/java/org/springframework/sample/petclinic/owner/OwnerController.java`:
