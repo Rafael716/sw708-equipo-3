@@ -51,4 +51,16 @@ CREATE TABLE owners (
 
 **1. Si mañana piden registrar vacunas por mascota, ¿qué cajas del mapa tocarías y cuáles no?**
 
+La caja que claramente hay que tocar es **owner**, porque ahí es donde vive todo lo relacionado a mascotas: el componente dice "Controla las operaciones CRUD de los dueños y sus mascotas", así que una vacuna pertenece a una mascota y por ende cae dentro de ese mismo componente. Habría que agregar una clase `Vaccine` parecida a como ya existe `Visit`, meterla dentro de `Pet`, crear un controlador y el formulario HTML correspondiente.
+
+La otra caja que inevitablemente se toca es la **Base de Datos**, porque necesitaríamos una tabla nueva `vaccines` con su FK hacia `pets`, igual que como ya existe la tabla `visits`.
+
+La caja **model** no la modificaríamos, pero sí la estaríamos usando: la clase `Vaccine` heredaría de `BaseEntity` igual que lo hace `Visit`. La flecha "Usa entidades de" que ya aparece en el diagrama aplica perfectamente para ese caso.
+
+Las cajas que definitivamente no se tocan son **vet**, **system** y **PetClinicApplication**. Los veterinarios no tienen rol en el registro de vacunas según como está diseñado el sistema hoy, y las otras dos son infraestructura pura que no se ve afectada por agregar un nuevo concepto de negocio.
+
 **2. De todo lo que viste hoy, ¿qué es estructural (cambiarlo obliga a cambiar muchas otras cosas) y qué es acabado (se cambia sin que nadie más se entere)? Da un ejemplo de cada uno.**
+
+Un ejemplo de lo **estructural** es la caja **model**. En el diagrama se ve que tanto `owner` como `vet` tienen flechas "Usa entidades de" apuntando hacia ella, o sea, los dos componentes principales del sistema dependen de lo que hay ahí adentro (`BaseEntity`, `NamedEntity`, `Person`). Si alguien decide cambiar por ejemplo el tipo del campo `id` en `BaseEntity`, ese cambio lo van a sentir inmediatamente `Owner`, `Pet`, `Visit`, `Vet` y todo lo que toca la base de datos, porque todo hereda de ahí. Mueves una sola caja y el resto se sacude.
+
+Un ejemplo de lo **acabado** son los templates HTML dentro de `owner`, como el formulario de visitas. Puedes cambiarle el estilo, renombrar una etiqueta o ajustar una validación de texto, y las cajas `vet`, `model` o `system` del diagrama no se enteran para nada. Es un detalle que vive dentro de una sola caja y no cruza hacia ninguna otra.

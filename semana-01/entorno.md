@@ -54,7 +54,19 @@
 
 ---
 
-## Integrante 4: 
+## Integrante 4: Henry Javier Medina Malpartida
+
+* Paso 1:
+
+![Paso 1](capturas/p1-jdk-Medina.png)
+
+* Paso 3:
+
+![Paso 3](capturas/p3-maven-Medina.png)
+
+* Paso 5:
+
+![Paso 5](capturas/p5-build-Medina.png)
 
 ---
 
