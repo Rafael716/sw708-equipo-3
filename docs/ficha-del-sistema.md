@@ -26,3 +26,6 @@
     * El backend usa `synchronize: false` y **no tiene sistema de migraciones**: el esquema solo se levanta a mano con los scripts DDL.
     * La sección "Cambios respecto al prototipo" del README de la app **sigue vacía** (pendiente del grupo).
     * La lógica de **login/autenticación está duplicada por módulo** (reservas, marítimo, portuario) en lugar de un auth único.
+
+# ESTADO: APROBADO CON AJUSTES 
+ **Terminar pantallas, y hacer funcional el sistema al 100% (en los modulos elegidos)
