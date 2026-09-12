@@ -6,10 +6,8 @@
     Curso: Diseño de base de datos SI501U, se llevo en el 5to ciclo. El trabajo fue durante todo el ciclo con entregables constantes.
 3. **Integrantes que participaron:**
     * Romel Rodrigo Chumpitaz Flores
-    * Gonzalo Albornoz Azurza
     * Rafael Adriano Olivos Gallardo
     * David Luza Ccorimanya
-    * Franz Joe Inga Champi
 4. **Que hace:** El sistema gestiona las operaciones logísticas de contenedores de Hapag-Lloyd, desde la reserva del pedido en un contenedor hasta su entrega final. Cubre 5 módulos: reservas de pedidos marítimos, operaciones portuarias, operaciones marítimas, operaciones terrestres y monitoreo de entregas en tiempo real.
 5. **Lenguaje y stack:** El lenguaje de programacion fue typescript tanto para el backend como para el frontend, los frameworks para el backend fue nestjs y para el frontend fue nextjs, la base de datos fue hecho en posgresql y la herramienta de construccion npm.
 6. **Repositorio:** [Link del repositorio](https://github.com/Bluethem/dbdgrupo5-25-2/)   
