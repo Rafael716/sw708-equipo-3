@@ -1,7 +1,5 @@
 # Grupo 3 - Arquitectura de Soluciones
 
-Repositorio a analizar: [Link](https://github.com/spring-projects/spring-petclinic)
-
 | Integrantes | Codigo |
 | -- | -- |
 | 1. Rafael Adriano Olivos Gallardo | 20231296G |
