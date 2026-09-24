@@ -46,7 +46,7 @@ Los schemas `gestion_portuaria` y `gestion_reserva` de PostgreSQL se omitieron p
 ## 3. Observaciones del equipo revisor
 
 > [!NOTE]
-> Feedback del equipo 3
+> Feedback del equipo 1 (CineStar Barrio)
 
 # Feedback de diagramas C4 — Semana 03 (sw708-equipo-3)
 
