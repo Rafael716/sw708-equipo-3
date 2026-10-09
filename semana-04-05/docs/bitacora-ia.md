@@ -4,19 +4,36 @@
 
 **No se usó asistente de IA para elaborar el cuadro del costo del cambio ni para escribir el código de la rodaja vertical y su prueba de dominio.** Las mediciones, la implementación y las pruebas fueron responsabilidad del equipo.
 
-## 2. Alternativas aportadas por la IA en los ADR
+## 2. Alternativas aportadas por la IA en los ADR y alternativas descartadas
 
-Se utilizó **Claude** para generar alternativas que pudieran evaluarse en los dos registros de decisiones arquitectónicas (*Architecture Decision Records*).
+Se utilizó **Claude** como apoyo para explorar alternativas arquitectónicas y tecnológicas. La evaluación de las opciones y la decisión definitiva fueron responsabilidad del equipo.
 
-* **ADR de elección del estilo arquitectónico:** se exploraron alternativas como arquitectura en capas, arquitectura hexagonal y una estructura fuertemente acoplada. Su pertinencia debía evaluarse según los atributos de calidad y los resultados del costo del cambio.
-* **Segundo ADR:** las alternativas debían corresponder a la decisión tecnológica o arquitectónica documentada por el equipo.
+### ADR 001 — Estilo arquitectónico: monolito modular
 
-La selección final, la evaluación de las opciones y la justificación de los descartes fueron responsabilidad del equipo. Las alternativas definitivas deben coincidir con las registradas en `docs/adr/`.
+Se consideraron tres alternativas:
+
+* **Monolito modular (elegido):** organiza el sistema en módulos de dominio y esquemas de base de datos separados, manteniendo una única unidad de despliegue.
+* **Monolito bola de barro (descartado):** se descartó por la falta de fronteras claras entre responsabilidades, que dificultaría el mantenimiento y aumentaría el riesgo de que los cambios afectaran varias partes del sistema.
+* **Microservicios por módulo (descartado):** se descartaron por la complejidad adicional de gestionar múltiples servicios, contratos, despliegues y posibles fallos de comunicación, sin evidencia de que el sistema necesitara ese aislamiento operativo.
+
+La elección del monolito modular se relacionó con el escenario de mantenibilidad y los resultados del costo del cambio de las versiones A y B.
+
+### ADR 002 — Stack de lenguaje: TypeScript con NestJS y Next.js
+
+Se consideraron tres alternativas:
+
+* **TypeScript con NestJS y Next.js (elegida):** permite utilizar TypeScript en backend y frontend, manteniendo tipado y organización modular.
+* **Java con Spring Boot y una interfaz separada (descartada):** se descartó porque introducir una nueva plataforma tecnológica aumentaría la curva de aprendizaje y el tiempo necesario para disponer de una interfaz funcional.
+* **Python con Django o FastAPI y frontend JavaScript sin TypeScript (descartada):** se descartó porque perdería el tipado compartido entre la API y la interfaz y debilitaría la estructura modular buscada.
+
+La elección final se fundamentó en el stack existente en el proyecto, la coherencia con el monolito modular y la necesidad de facilitar el desarrollo y mantenimiento del sistema.
 
 ## 3. Uso de IA en la documentación
 
-Se utilizó ChatGPT para organizar y mejorar la redacción de `docs/bitacora-ia.md`, aclarar las actividades del laboratorio y documentar el alcance del apoyo recibido.
+Claude también se utilizó para organizar y mejorar la redacción de `docs/bitacora-ia.md`, manteniendo la documentación coherente con las decisiones arquitectónicas registradas en `docs/adr/`.
 
 ## 4. Declaración de uso responsable
 
-La IA se utilizó como apoyo para explorar alternativas arquitectónicas y organizar la documentación, sin sustituir las decisiones técnicas del equipo ni la experimentación de la semana 5.
+Claude se utilizó como apoyo para explorar alternativas y organizar la documentación. La selección de las opciones definitivas, la evaluación de las alternativas descartadas y la justificación técnica de las decisiones correspondieron al equipo.
+
+Se mantiene expresamente la declaración de la semana 5: **no se usó asistente para el cuadro del costo del cambio ni para la rodaja vertical**.
