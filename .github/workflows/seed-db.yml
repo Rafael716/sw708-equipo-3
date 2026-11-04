@@ -1,0 +1,36 @@
+name: Seed DB
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_ddl:
+        description: "Recrear esquema (DESTRUCTIVO). Solo para el primer deploy o reseed completo."
+        type: boolean
+        default: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    concurrency: seed-db
+    env:
+      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar cliente psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Ejecutar seed
+        working-directory: src/repo
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.run_ddl }}" = "true" ]; then
+            ARGS="--ddl"
+          fi
+          bash scripts/poblamiento_datos/seed.sh $ARGS
