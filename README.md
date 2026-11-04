@@ -2,7 +2,7 @@
 
 Sistema de **Gestión de Operaciones Marítimas y Monitoreo en Tiempo Real** orientado a la logística de contenedores de Hapag-Lloyd. Integra reservas, operaciones marítimas/terrestres, personal de tripulación y monitoreo (incidencias, sensores, notificaciones y reportes) en un solo producto desplegable.
 
-El código de aplicación vive en el submódulo [`src/repo`](./src/repo) (origen: curso de Diseño de Bases de Datos). Este repositorio documenta además el trabajo de arquitectura del curso **SW708** (escenarios de calidad, C4, ADRs, rodaja vertical).
+El código de aplicación vive en [`src/repo`](./src/repo) (antes submódulo del curso de Diseño de Bases de Datos; ahora código propio de este repositorio). La documentación de arquitectura del curso **SW708** está en [`docs/`](./docs/).
 
 ---
 
@@ -17,7 +17,7 @@ El código de aplicación vive en el submódulo [`src/repo`](./src/repo) (origen
 | **Personal / tripulación** | Datos de tripulación como soporte | [ ] |
 | **Monitoreo** | Operaciones, contenedores, incidencias, notificaciones, reportes y mapa | [x] |
 
-Arquitectura: **monolito modular** (ADR-0001) con backend NestJS, frontend Next.js y PostgreSQL con un esquema por dominio más `shared`. Stack unificado en TypeScript (ADR-0002).
+Arquitectura: **monolito modular** ([ADR-0001](./docs/adr/0001-monolito-modular.md)) con backend NestJS, frontend Next.js y PostgreSQL con un esquema por dominio más `shared`. Stack unificado en TypeScript ([ADR-0002](./docs/adr/0002-stack-typescript-nestjs-nextjs.md)). Rodaja de Incidencias con puertos y adaptadores ([ADR-0003](./docs/adr/0003-puertos-y-adaptadores.md)).
 
 ---
 
@@ -25,9 +25,14 @@ Arquitectura: **monolito modular** (ADR-0001) con backend NestJS, frontend Next.
 
 ```
 sw708-equipo-3/
-├── docs/                 # Informes y entregas de arquitectura
-├── semana-01 … semana-07 # Avances semanales, ADRs, bitácoras
-└── src/repo/             # Submódulo con la aplicación
+├── .github/workflows/    # CI: tests + dependency-cruiser
+├── docs/                 # Informe (arquitectura.md), ADR, reglas de negocio
+│   ├── arquitectura.md
+│   ├── reglas-de-negocio.md
+│   ├── guia-git.md
+│   └── adr/
+├── semana-01 … semana-07 # Avances semanales, bitácoras, C4 fuente
+└── src/repo/             # Aplicación (código propio, no submódulo)
     └── app/
         ├── backend/      # NestJS (API, puerto 3001)
         ├── frontend/     # Next.js (UI, puerto 3000)
@@ -36,8 +41,11 @@ sw708-equipo-3/
 
 Documentación útil:
 
-- [Documentación de la app](https://github.com/Bluethem/dbdgrupo5-25-2/blob/a4a342f463dd24ddbfb87f32dc50e2e34ce44f38/app/README.md)
-- [Deploy](https://github.com/Bluethem/dbdgrupo5-25-2/blob/a4a342f463dd24ddbfb87f32dc50e2e34ce44f38/DEPLOY.md)
+- [Informe / arquitectura](./docs/arquitectura.md)
+- [Reglas de negocio](./docs/reglas-de-negocio.md)
+- [Guía Git (PRs y develop)](./docs/guia-git.md)
+- [README de la app](./src/repo/app/README.md)
+- [Deploy](./src/repo/DEPLOY.md)
 
 ---
 
@@ -45,18 +53,15 @@ Documentación útil:
 
 Requisitos: **Node.js ≥ 20.9**, **pnpm ≥ 9**, y (recomendado) **Docker**.
 
-### 1. Clonar e inicializar el submódulo
+### 1. Clonar
 
 ```bash
 git clone https://github.com/Rafael716/sw708-equipo-3.git
 cd sw708-equipo-3
-git submodule update --init --recursive
 cd src/repo/app
 ```
 
 ### 2. Opción A — Docker Compose (recomendada)
-
-Levanta PostgreSQL + backend + frontend:
 
 ```bash
 cp .env.example .env   # opcional: ajustar credenciales
@@ -69,7 +74,7 @@ docker compose up -d --build
 | Backend | http://localhost:3001 |
 | PostgreSQL | red interna `db:5432` |
 
-Datos de prueba (seed):
+Datos de prueba (seed), desde `src/repo`:
 
 ```bash
 ./scripts/poblamiento_datos/seed.sh
@@ -77,31 +82,25 @@ Datos de prueba (seed):
 
 Credencial de demo: `admin@demo.com` / `Admin123!`
 
-Comandos útiles:
-
-```bash
-docker compose logs -f backend
-docker compose down          # detener
-docker compose down -v       # detener y borrar volumen de BD
-```
-
 ### 3. Opción B — Desarrollo local (pnpm)
 
-Con PostgreSQL disponible (por ejemplo solo el servicio `db` de Docker):
+Desde `src/repo/app`, con PostgreSQL disponible:
 
 ```bash
 pnpm install
 pnpm dev:backend    # http://localhost:3001
 pnpm dev:frontend   # http://localhost:3000
-# o ambos:
-pnpm dev
-```
-
-Build y tests:
-
-```bash
+pnpm dev            # ambos
 pnpm build
 pnpm test
+```
+
+### 4. CI local (misma regla que GitHub Actions)
+
+```bash
+cd src/repo/app
+pnpm --filter backend test
+pnpm --filter backend test:arch
 ```
 
 ---
@@ -109,11 +108,11 @@ pnpm test
 ## Colaboradores
 
 | # | Integrante | Código | Usuarios de GitHub |
-| --- | --- | --- | --- | 
+| --- | --- | --- | --- |
 | 1 | Rafael Adriano Olivos Gallardo | 20231296G | Rafael716 |
 | 2 | Romel Rodrigo Chumpitaz Flores | 20231014A | RomelCF |
 | 3 | David Luza Ccorimanya | 20232595H | Bluethem |
 | 4 | Henry Javier Medina Malpartida | 20232571A | h3nr7M3d |
-| 5 | Pablo Antonio Muñoz Bolaños | 20242090F | Pablo-Dev |
+| 5 | Pablo Antonio Muñoz Bolaños | 20242090F | PabloDev-eng |
 
 ![Colaboradores](./semana-01/capturas/p2-colaboradores.jpeg)

@@ -1,0 +1,22 @@
+# Identidad canónica ← alias que aparece en el historial
+# Formato: Nombre Completo <correo@uni.pe> NombreViejo <correo-viejo>
+# Cada integrante debe configurar en su máquina:
+#   git config --global user.name "Nombres Apellidos"
+#   git config --global user.email "su.correo@uni.pe"
+# y el mismo nombre en el perfil de GitHub + correo @uni.pe en Settings > Emails.
+
+Olivos Gallardo, Adriano Rafael <adriano.olivos.g@uni.pe> Rafael716 <adriano.olivos.g@uni.pe>
+Olivos Gallardo, Adriano Rafael <adriano.olivos.g@uni.pe> Rafael <adriano.olivos.g@uni.pe>
+
+Chumpitaz Flores, Romel Rodrigo <romel.chumpitaz.f@uni.pe> RomelCF <romel.chumpitaz.f@uni.pe>
+Chumpitaz Flores, Romel Rodrigo <romel.chumpitaz.f@uni.pe> Romel Rodrigo Chumpitaz Flores <romel.chumpitaz.f@uni.pe>
+
+Luza Ccorimanya, David <david.luza.c@uni.pe> Bluethem <143272687+Bluethem@users.noreply.github.com>
+Luza Ccorimanya, David <david.luza.c@uni.pe> bluethem <david.luza.c@uni.pe>
+
+Medina Malpartida, Henry Javier <medinamalpartidahenryjavier@gmail.com> h3nr7M3d <medinamalpartidahenryjavier@gmail.com>
+# TODO (Henry): reemplazar el correo personal por su @uni.pe cuando lo agregue en GitHub y en git config.
+
+Muñoz Bolaños, Pablo Antonio <pablo.munoz.b@uni.pe> Pablo Muñoz <pablo.munoz.b@uni.pe>
+Muñoz Bolaños, Pablo Antonio <pablo.munoz.b@uni.pe> PabloMuñoz <pablo.munoz.b@uni.pe>
+Muñoz Bolaños, Pablo Antonio <pablo.munoz.b@uni.pe> PabloMuñoz <pablomunoz.ab@gmail.com>
