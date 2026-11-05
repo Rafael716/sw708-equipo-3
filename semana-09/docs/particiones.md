@@ -149,3 +149,49 @@ Descartamos la **Partición A** porque cualquier cambio nuevo (un sensor o una a
 
 #### 3. Qué tendría que pasar para cambiar de idea
 * **Para volver a la Partición A (Capas técnicas):** Que el sistema se vuelva un CRUD básico y estático mantenido por una sola persona, donde mantener contratos y esquemas separados sea puro trabajo extra sin beneficio.
+* **Para pasar a Microservicios:** Que el volumen de telemetría IoT crezca a millones de eventos por segundo y obligue a desplegar el monitoreo en infraestructura aparte, o que tengamos equipos de desarrollo grandes y autónomos por cada área del negocio.
+
+---
+
+## Partición del build en módulos (Paso 05)
+
+Se materializó la frontera de la **Partición B** en el archivo de construcción de Node/pnpm (`pnpm-workspace.yaml` y `package.json`):
+
+1. **Declaración en el build padre (`pnpm-workspace.yaml`):**
+   * Se incorporó el patrón `packages/*` para reconocer formalmente módulos de negocio independientes más allá de la división horizontal de `backend` y `frontend`.
+2. **Creación del primer módulo desacoplado (`@app/monitoreo`):**
+   * Ubicación: `app/packages/monitoreo/`.
+   * Contiene su propio `package.json` y `tsconfig.json`, aislando los casos de uso y puertos del dominio de telemetría e incidencias.
+3. **Consumo por referencia explícita:**
+   * En `backend/package.json` se declaró la dependencia formal de workspace:
+     `"@app/monitoreo": "workspace:*"`
+   * El backend consume el módulo mediante la referencia `@app/monitoreo` en lugar de imports relativos cruzados entre carpetas (`../`).
+
+---
+
+## Reglas de límites de arquitectura (Paso 06)
+
+Para garantizar que el compilador defienda la frontera de la **Partición B**, se amplió la regla de arquitectura en `backend/.dependency-cruiser.cjs`:
+
+```javascript
+{
+  name: 'dominio-monitoreo-no-depende-de-otros-modulos',
+  comment: 'Frontera Partición B: el dominio de monitoreo no debe importar gestión marítima, reservas ni operaciones terrestres.',
+  severity: 'error',
+  from: { path: '^src/monitoreo/dominio', pathNot: '\\.spec\\.ts$' },
+  to: { path: '^src/(gestion_maritima|gestion_reserva|gestion_portuaria|operaciones_terrestres)' }
+}
+```
+
+### Experimento de comprobación de frontera:
+
+1. **Prueba de fallo (Build en Rojo):**
+   * Se agregó a propósito un import prohibido en `src/monitoreo/dominio/incidencias.port.ts`:
+     `import type { Puerto } from '../../gestion_maritima/entities/puerto.entity';`
+   * Al ejecutar `pnpm --filter backend test:arch`, el verificador detectó la violación de frontera y rompió la compilación con código de error.
+   * Evidencia: `semana-09/assests/build-rojo.png`.
+
+2. **Restablecimiento y verificación (Build en Verde):**
+   * Se retiró el import prohibido.
+   * Se ejecutó nuevamente `pnpm --filter backend test:arch`, obteniendo 0 errores de arquitectura.
+   * El flujo de GitHub Actions (`backend-arch.yml`) valida la corrida en verde en la integración continua.
