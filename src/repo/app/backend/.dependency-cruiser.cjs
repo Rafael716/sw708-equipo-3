@@ -26,6 +26,19 @@ module.exports = {
         path: 'node_modules/(@nestjs|typeorm)',
       },
     },
+    {
+      name: 'dominio-monitoreo-no-depende-de-otros-modulos',
+      comment:
+        'Frontera Partición B: el dominio de monitoreo no debe importar gestión marítima, reservas ni operaciones terrestres.',
+      severity: 'error',
+      from: {
+        path: '^src/monitoreo/dominio',
+        pathNot: '\\.spec\\.ts$',
+      },
+      to: {
+        path: '^src/(gestion_maritima|gestion_reserva|gestion_portuaria|operaciones_terrestres)',
+      },
+    },
   ],
   options: {
     doNotFollow: {
@@ -34,6 +47,7 @@ module.exports = {
     tsConfig: {
       fileName: 'tsconfig.json',
     },
+    tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default'],
