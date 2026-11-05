@@ -1,0 +1,66 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { MonitoreoModule } from './monitoreo/monitoreo.module';
+import { AuthModule } from './auth/auth.module';
+import { GestionMaritimaModule } from './gestion_maritima/gestion_maritima.module';
+import { GestionReservaModule } from './gestion_reserva/gestion_reserva.module';
+import { GestionPortuariaModule } from './gestion_portuaria/gestion_portuaria.module';
+
+@Module({
+  imports: [
+    // Configuración de variables de entorno
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+
+    // Configuración de TypeORM con PostgreSQL
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get('DATABASE_URL');
+        
+        // Si existe DATABASE_URL (Producción con Supabase)
+        if (databaseUrl) {
+          return {
+            type: 'postgres',
+            url: databaseUrl,
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: false,
+            logging: process.env.NODE_ENV === 'development',
+            ssl: {
+              rejectUnauthorized: false, // Para Supabase
+            },
+          };
+        }
+        
+        // Si no (Desarrollo local con pgAdmin)
+        return {
+          type: 'postgres',
+          host: configService.get('DATABASE_HOST'),
+          port: +configService.get('DATABASE_PORT'),
+          username: configService.get('DATABASE_USER'),
+          password: configService.get('DATABASE_PASSWORD'),
+          database: configService.get('DATABASE_NAME'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          synchronize: false,
+          logging: process.env.NODE_ENV === 'development',
+        };
+      },
+    }),
+
+    // Módulos de la aplicación
+    AuthModule,
+    MonitoreoModule,
+    GestionMaritimaModule,
+    GestionReservaModule,
+    GestionPortuariaModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule { }

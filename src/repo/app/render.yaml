@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bd252-backend
+    runtime: node
+    rootDir: app
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter backend build
+    startCommand: pnpm --filter backend start:prod
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      # sync: false => se configuran manualmente en el dashboard de Render
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://bd252-grupo5-app.vercel.app,http://localhost:3000

@@ -1,0 +1,11 @@
+node_modules/
+.pnpm-store/
+
+# environment
+.env
+.env.*
+!.env.example
+
+# editor
+.vscode/
+.idea/

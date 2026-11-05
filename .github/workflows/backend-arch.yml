@@ -1,0 +1,38 @@
+name: Backend tests y arquitectura
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-arch:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/repo/app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # pnpm 11 requiere Node >= 22.13 (node:sqlite)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.26.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: src/repo/app/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install
+
+      - name: Pruebas (incluye dominio sin DB)
+        run: pnpm --filter backend test
+
+      - name: Regla de arquitectura (dependency-cruiser)
+        run: pnpm --filter backend test:arch

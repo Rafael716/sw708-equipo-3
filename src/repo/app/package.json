@@ -1,0 +1,19 @@
+{
+  "name": "bd252-grupo5-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de Operaciones - Hapag-Lloyd (Grupo 5, BD252)",
+  "scripts": {
+    "dev:backend": "pnpm --filter backend start:dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm --filter backend test"
+  },
+  "engines": {
+    "node": ">=20.9.0",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@11.26.0"
+}

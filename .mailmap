@@ -1,0 +1,27 @@
+# Identidad canónica ← alias del historial
+# Formato: Nombres Apellidos <correo@uni.pe> Nombre-viejo <correo-viejo>
+# Cada integrante en su máquina:
+#   git config --global user.name "Nombres Apellidos"
+#   git config --global user.email "su.correo@uni.pe"
+# Mismo nombre en el perfil de GitHub + @uni.pe en Settings > Emails.
+
+Adriano Rafael Olivos Gallardo <adriano.olivos.g@uni.pe> Rafael716 <adriano.olivos.g@uni.pe>
+Adriano Rafael Olivos Gallardo <adriano.olivos.g@uni.pe> Rafael <adriano.olivos.g@uni.pe>
+Adriano Rafael Olivos Gallardo <adriano.olivos.g@uni.pe> Olivos Gallardo, Adriano Rafael <adriano.olivos.g@uni.pe>
+
+Romel Rodrigo Chumpitaz Flores <romel.chumpitaz.f@uni.pe> RomelCF <romel.chumpitaz.f@uni.pe>
+Romel Rodrigo Chumpitaz Flores <romel.chumpitaz.f@uni.pe> Romel Rodrigo Chumpitaz Flores <romel.chumpitaz.f@uni.pe>
+Romel Rodrigo Chumpitaz Flores <romel.chumpitaz.f@uni.pe> Chumpitaz Flores, Romel Rodrigo <romel.chumpitaz.f@uni.pe>
+
+David Luza Ccorimanya <david.luza.c@uni.pe> Bluethem <143272687+Bluethem@users.noreply.github.com>
+David Luza Ccorimanya <david.luza.c@uni.pe> bluethem <david.luza.c@uni.pe>
+David Luza Ccorimanya <david.luza.c@uni.pe> Luza Ccorimanya, David <david.luza.c@uni.pe>
+
+Henry Javier Medina Malpartida <medinamalpartidahenryjavier@gmail.com> h3nr7M3d <medinamalpartidahenryjavier@gmail.com>
+Henry Javier Medina Malpartida <medinamalpartidahenryjavier@gmail.com> Medina Malpartida, Henry Javier <medinamalpartidahenryjavier@gmail.com>
+# TODO (Henry): cambiar a su @uni.pe en git config, GitHub Emails y esta línea.
+
+Pablo Antonio Muñoz Bolaños <pablo.munoz.b@uni.pe> Pablo Muñoz <pablo.munoz.b@uni.pe>
+Pablo Antonio Muñoz Bolaños <pablo.munoz.b@uni.pe> PabloMuñoz <pablo.munoz.b@uni.pe>
+Pablo Antonio Muñoz Bolaños <pablo.munoz.b@uni.pe> PabloMuñoz <pablomunoz.ab@gmail.com>
+Pablo Antonio Muñoz Bolaños <pablo.munoz.b@uni.pe> Muñoz Bolaños, Pablo Antonio <pablo.munoz.b@uni.pe>

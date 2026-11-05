@@ -1,0 +1,28 @@
+name: PR guard (convención de rama)
+
+# No sustituye la protección de rama en Settings de GitHub
+# (Require a pull request before merging → main / develop).
+# Solo falla el check si el nombre de la rama del PR no sigue la convención.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar nombre de rama
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "Rama del PR: $BRANCH"
+          # Permitidos: feat|fix|docs|chore|refactor|test / número opcional / descripción
+          # Ejemplos: fix/12-di-incidencias, docs/3-adr-puertos, chore/ci-backend
+          if [[ "$BRANCH" =~ ^(feat|fix|docs|chore|refactor|test)/[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+            echo "OK: convención tipo/descripcion"
+            exit 0
+          fi
+          echo "::error::La rama '$BRANCH' no sigue tipo/numero-descripcion (minúsculas y guiones)."
+          echo "Ejemplo válido: fix/12-di-incidencias"
+          exit 1
