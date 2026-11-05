@@ -129,7 +129,23 @@ Para garantizar que la Partición B no degenere en un monolito distribuido (lo q
 
 ---
 
-### Veredicto Final
 
-> **Veredicto:** **Se adopta la Partición B.**
-> Mientras que la Partición A fragmenta cualquier cambio entre capas técnicas obligando a tocar 3 o más partes a la vez, la **Partición B** concentra cada funcionalidad en un único módulo de negocio. Esto permite aplicar cambios rápidamente sin tocar otros dominios, aislar la alta carga de telemetría y realizar pruebas con dobles sin tener que levantar todo el sistema.
+## Elección y sustentación de la partición
+
+### Partición elegida: Partición B (Capacidades de Negocio)
+
+Descartamos la **Partición A** porque cualquier cambio nuevo (un sensor o una alerta) obliga a modificar tres capas a la vez (frontend, backend y base de datos) y genera dependencias cruzadas entre tablas que no deberían conocerse.
+
+#### 1. Qué gana
+* **Cambios localizados:** Cada requerimiento se resuelve dentro de su propio módulo (pantalla, lógica y tablas), cumpliendo con hacer cambios en menos de 1 día y sin downtime.
+* **Aislamiento de carga:** La telemetría satelital/IoT de alta frecuencia no compite por recursos ni frena los procesos transaccionales de reservas o puertos.
+* **Pruebas independientes:** Podemos probar la lógica de negocio con dobles de prueba en memoria sin tener que levantar toda la base de datos ni todo el sistema.
+* **Trabajo en paralelo:** Cada integrante puede avanzar en su módulo sin pisar esquemas de BD ni generar conflictos en Git.
+
+#### 2. Qué pierde
+* **Consultas cruzadas más trabajosas:** No se pueden hacer JOINs directos entre tablas de distintos dominios; exige definir contratos (DTOs) o vistas agregadas.
+* **Duplicación mínima:** Para mantener el desacoplamiento, algunos datos básicos (como el nombre del buque) se repiten en eventos y proyecciones.
+* **Exige disciplina:** Si alguien se descuida e importa entidades de otro módulo por atajo, el monolito modular se degrada a una bola de barro.
+
+#### 3. Qué tendría que pasar para cambiar de idea
+* **Para volver a la Partición A (Capas técnicas):** Que el sistema se vuelva un CRUD básico y estático mantenido por una sola persona, donde mantener contratos y esquemas separados sea puro trabajo extra sin beneficio.
