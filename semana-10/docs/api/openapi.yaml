@@ -1,0 +1,295 @@
+openapi: 3.1.0
+
+info:
+  title: Monitoreo — Incidencias
+  version: 1.0.0
+  summary: Alta de una incidencia asociada a una operación monitoreada.
+  contact:
+    name: Equipo 3 — SW708
+  license:
+    name: Uso académico
+    identifier: LicenseRef-Academic
+
+servers:
+  - url: http://localhost:3001
+
+tags:
+  - name: Monitoreo
+
+paths:
+  /monitoreo/incidencias:
+    post:
+      tags:
+        - Monitoreo
+      summary: Crear una incidencia
+      operationId: crearIncidencia
+      description: 'Registra una incidencia sobre una operación en estado `En curso`.'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        description: 'Datos de la incidencia. El `id_usuario` se deriva del JWT.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearIncidenciaRequest'
+            examples:
+              sensor_fuera_de_rango:
+                summary: Incidencia de temperatura con severidad alta
+                value:
+                  id_tipo_incidencia: 6f1c2b9e-3a4d-4c8e-9f10-2b7d5a6c8e01
+                  descripcion: Sensor de temperatura del contenedor fuera de rango
+                  grado_severidad: 4
+                  id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
+      responses:
+        '400':
+          description: Error de validación de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                descripcion_vacia:
+                  summary: 'Falta `descripcion` o solo tiene espacios'
+                  value:
+                    statusCode: 400
+                    message: La descripción no puede estar vacía
+                    error: Bad Request
+                severidad_invalida:
+                  summary: '`grado_severidad` no es entero o está fuera de 1..5'
+                  value:
+                    statusCode: 400
+                    message: El grado de severidad debe ser un entero entre 1 y 5
+                    error: Bad Request
+                tipo_inexistente:
+                  summary: 'El UUID de tipo no existe en `tipoincidencia`'
+                  value:
+                    statusCode: 400
+                    message: Tipo de incidencia no válido
+                    error: Bad Request
+                operacion_inactiva_o_inexistente:
+                  summary: 'La operación no existe o no está en estado "En curso"'
+                  value:
+                    statusCode: 400
+                    message: La operación no está activa
+                    error: Bad Request
+                catalogo_sin_estado_abierta:
+                  summary: 'No hay estado "Abierta" configurado'
+                  value:
+                    statusCode: 400
+                    message: No hay estados de incidencia configurados
+                    error: Bad Request
+                uuid_mal_formado:
+                  summary: UUID con formato inválido
+                  value:
+                    statusCode: 400
+                    message: 'invalid input syntax for type uuid: "op-99"'
+                    error: Bad Request
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                token_ausente_o_invalido:
+                  summary: Sin token o token rechazado por la estrategia JWT
+                  value:
+                    statusCode: 401
+                    message: Unauthorized
+        '500':
+          description: Error interno no controlado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                error_interno:
+                  summary: Error inesperado del servidor
+                  value:
+                    statusCode: 500
+                    message: Internal server error
+        '201':
+          description: Incidencia creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incidencia'
+              examples:
+                incidencia_creada:
+                  summary: Respuesta real del alta
+                  value:
+                    id_incidencia: 9f2c7a41-6b3e-4d58-8c1a-7e0f2b9d4a63
+                    codigo: INC-2611-0001
+                    id_tipo_incidencia: 6f1c2b9e-3a4d-4c8e-9f10-2b7d5a6c8e01
+                    descripcion: Sensor de temperatura del contenedor fuera de rango
+                    grado_severidad: 4
+                    fecha_hora: '2026-11-07T15:42:10.123Z'
+                    id_estado_incidencia: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+                    id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
+                    id_usuario: c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f
+                    tipo_incidencia:
+                      id_tipo_incidencia: 6f1c2b9e-3a4d-4c8e-9f10-2b7d5a6c8e01
+                      nombre: Temperatura
+                    estado_incidencia:
+                      id_estado_incidencia: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
+                      nombre: Abierta
+                    operacion:
+                      id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
+                      codigo: OP-2026-0042
+                      fecha_inicio: '2026-11-07T08:00:00.000Z'
+                      fecha_fin: null
+                      id_estado_operacion: d4e5f6a7-b8c9-4d0e-9f1a-2b3c4d5e6f70
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CrearIncidenciaRequest:
+      type: object
+      required:
+        - id_tipo_incidencia
+        - descripcion
+        - grado_severidad
+        - id_operacion
+      properties:
+        id_tipo_incidencia:
+          type: string
+          format: uuid
+          description: 'Debe existir en `shared.tipoincidencia`.'
+        descripcion:
+          type: string
+          minLength: 1
+          description: 'Texto no vacío; el servidor recorta espacios.'
+        grado_severidad:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: 'Entero de 1 a 5. El valor 5 intenta notificar a supervisores.'
+        id_operacion:
+          type: string
+          format: uuid
+          description: 'Debe existir y estar en estado `En curso`.'
+
+    Incidencia:
+      type: object
+      required:
+        - id_incidencia
+        - codigo
+        - id_tipo_incidencia
+        - descripcion
+        - grado_severidad
+        - fecha_hora
+        - id_estado_incidencia
+        - id_operacion
+        - id_usuario
+      properties:
+        id_incidencia:
+          type: string
+          format: uuid
+        codigo:
+          type: string
+          pattern: '^INC-\d{4}-\d{4}$'
+          description: 'Patrón `INC-YYMM-NNNN`.'
+          examples:
+            - INC-2611-0001
+        id_tipo_incidencia:
+          type: string
+          format: uuid
+        descripcion:
+          type: string
+        grado_severidad:
+          type: integer
+          minimum: 1
+          maximum: 5
+        fecha_hora:
+          type: string
+          format: date-time
+          description: Timestamp fijado por el servidor.
+        id_estado_incidencia:
+          type: string
+          format: uuid
+        id_operacion:
+          type: string
+          format: uuid
+        id_usuario:
+          type: string
+          format: uuid
+          description: Usuario autenticado que registró la incidencia.
+        tipo_incidencia:
+          $ref: '#/components/schemas/TipoIncidencia'
+        estado_incidencia:
+          $ref: '#/components/schemas/EstadoIncidencia'
+        operacion:
+          $ref: '#/components/schemas/OperacionResumen'
+
+    TipoIncidencia:
+      type: object
+      required:
+        - id_tipo_incidencia
+        - nombre
+      properties:
+        id_tipo_incidencia:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+
+    EstadoIncidencia:
+      type: object
+      required:
+        - id_estado_incidencia
+        - nombre
+      properties:
+        id_estado_incidencia:
+          type: string
+          format: uuid
+        nombre:
+          type: string
+          description: 'Para un alta exitosa es `Abierta`.'
+
+    OperacionResumen:
+      type: object
+      required:
+        - id_operacion
+        - codigo
+        - fecha_inicio
+        - id_estado_operacion
+      properties:
+        id_operacion:
+          type: string
+          format: uuid
+        codigo:
+          type: string
+        fecha_inicio:
+          type: string
+          format: date-time
+        fecha_fin:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        id_estado_operacion:
+          type: string
+          format: uuid
+
+    Error:
+      type: object
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+          minimum: 400
+          maximum: 599
+        message:
+          type: string
+          description: Mensaje del caso de uso, del guard o del framework.
+        error:
+          type: string
+          description: 'Etiqueta HTTP de NestJS en los `BadRequestException`.'
