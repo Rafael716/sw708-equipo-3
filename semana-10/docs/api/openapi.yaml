@@ -1,9 +1,37 @@
 openapi: 3.1.0
 
 info:
-  title: Monitoreo — Incidencias
+  title: Incidencias
   version: 1.0.0
-  summary: Alta de una incidencia asociada a una operación monitoreada.
+  summary: Registro de una incidencia asociada a una operación en curso.
+  description: |
+    Contrato del endpoint de alta de incidencias. Se escribió antes de la implementación.
+
+    ## Versionado
+
+    Versionado semántico del contrato. La versión MAJOR va en la ruta (`/v1/...`).
+
+    - **MAJOR** (1.x.x → 2.0.0, ruta nueva `/v2/...`): quitar o renombrar un campo,
+      volver obligatorio un campo opcional, endurecer una validación existente,
+      o cambiar el significado de un `codigo` de error o de un status HTTP.
+    - **MINOR** (1.0.x → 1.1.0): agregar un campo opcional a la petición o a la respuesta,
+      o agregar un `codigo` de error nuevo.
+    - **PATCH** (1.0.0 → 1.0.1): correcciones de redacción o de ejemplos,
+      sin cambio de comportamiento.
+
+    ## Errores
+
+    Todo error devuelve el mismo cuerpo: `codigo` (estable, para máquinas) y `mensaje`
+    (texto para humanos, puede cambiar sin subir la versión). Los clientes deben
+    decidir por `codigo`, nunca por `mensaje`.
+
+    | Status | Cuándo |
+    |---|---|
+    | 400 | La petición está mal formada: campo ausente, tipo o formato incorrecto, valor fuera de rango. |
+    | 401 | Falta el token o no es válido. |
+    | 409 | La operación existe pero su estado no admite incidencias. |
+    | 422 | La petición está bien formada pero hace referencia a algo que no existe. |
+    | 500 | Falla del servidor. No es culpa del cliente. |
   contact:
     name: Equipo 3 — SW708
   license:
@@ -12,103 +40,55 @@ info:
 
 servers:
   - url: http://localhost:3001
+    description: Desarrollo local
 
 tags:
-  - name: Monitoreo
+  - name: Incidencias
+    description: Registro de incidencias sobre operaciones en curso.
 
 paths:
-  /monitoreo/incidencias:
+  /v1/incidencias:
     post:
       tags:
-        - Monitoreo
+        - Incidencias
       summary: Crear una incidencia
       operationId: crearIncidencia
-      description: 'Registra una incidencia sobre una operación en estado `En curso`.'
+      description: |
+        Registra una incidencia sobre una operación en estado `En curso`.
+
+        **Qué promete cuando responde 201**
+        - La incidencia queda guardada con estado `Abierta` y un `codigo` único.
+        - `id_usuario` y `fecha_hora` los fija el servidor y no se pueden modificar después.
+        - Si `grado_severidad` es 5, se notifica a los supervisores. La notificación es
+          de mejor esfuerzo: si falla, la incidencia se conserva y la respuesta sigue siendo 201.
+
+        **Qué hace con campos que no conoce**
+        Cualquier campo fuera de los cuatro definidos se rechaza con 400 `VALIDACION`.
+        En particular, `id_usuario` no se acepta: siempre sale del token.
       security:
         - bearerAuth: []
       requestBody:
         required: true
-        description: 'Datos de la incidencia. El `id_usuario` se deriva del JWT.'
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CrearIncidenciaRequest'
             examples:
-              sensor_fuera_de_rango:
-                summary: Incidencia de temperatura con severidad alta
+              severidad_alta:
+                summary: Temperatura fuera de rango
                 value:
                   id_tipo_incidencia: 6f1c2b9e-3a4d-4c8e-9f10-2b7d5a6c8e01
                   descripcion: Sensor de temperatura del contenedor fuera de rango
                   grado_severidad: 4
                   id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
+              severidad_critica:
+                summary: Severidad 5, notifica a supervisores
+                value:
+                  id_tipo_incidencia: 6f1c2b9e-3a4d-4c8e-9f10-2b7d5a6c8e01
+                  descripcion: Pérdida total de refrigeración en el contenedor
+                  grado_severidad: 5
+                  id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
       responses:
-        '400':
-          description: Error de validación de negocio.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                descripcion_vacia:
-                  summary: 'Falta `descripcion` o solo tiene espacios'
-                  value:
-                    statusCode: 400
-                    message: La descripción no puede estar vacía
-                    error: Bad Request
-                severidad_invalida:
-                  summary: '`grado_severidad` no es entero o está fuera de 1..5'
-                  value:
-                    statusCode: 400
-                    message: El grado de severidad debe ser un entero entre 1 y 5
-                    error: Bad Request
-                tipo_inexistente:
-                  summary: 'El UUID de tipo no existe en `tipoincidencia`'
-                  value:
-                    statusCode: 400
-                    message: Tipo de incidencia no válido
-                    error: Bad Request
-                operacion_inactiva_o_inexistente:
-                  summary: 'La operación no existe o no está en estado "En curso"'
-                  value:
-                    statusCode: 400
-                    message: La operación no está activa
-                    error: Bad Request
-                catalogo_sin_estado_abierta:
-                  summary: 'No hay estado "Abierta" configurado'
-                  value:
-                    statusCode: 400
-                    message: No hay estados de incidencia configurados
-                    error: Bad Request
-                uuid_mal_formado:
-                  summary: UUID con formato inválido
-                  value:
-                    statusCode: 400
-                    message: 'invalid input syntax for type uuid: "op-99"'
-                    error: Bad Request
-        '401':
-          description: No autenticado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                token_ausente_o_invalido:
-                  summary: Sin token o token rechazado por la estrategia JWT
-                  value:
-                    statusCode: 401
-                    message: Unauthorized
-        '500':
-          description: Error interno no controlado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                error_interno:
-                  summary: Error inesperado del servidor
-                  value:
-                    statusCode: 500
-                    message: Internal server error
         '201':
           description: Incidencia creada.
           content:
@@ -117,7 +97,7 @@ paths:
                 $ref: '#/components/schemas/Incidencia'
               examples:
                 incidencia_creada:
-                  summary: Respuesta real del alta
+                  summary: Alta correcta
                   value:
                     id_incidencia: 9f2c7a41-6b3e-4d58-8c1a-7e0f2b9d4a63
                     codigo: INC-2611-0001
@@ -128,18 +108,93 @@ paths:
                     id_estado_incidencia: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
                     id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
                     id_usuario: c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f
-                    tipo_incidencia:
-                      id_tipo_incidencia: 6f1c2b9e-3a4d-4c8e-9f10-2b7d5a6c8e01
-                      nombre: Temperatura
-                    estado_incidencia:
-                      id_estado_incidencia: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
-                      nombre: Abierta
-                    operacion:
-                      id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
-                      codigo: OP-2026-0042
-                      fecha_inicio: '2026-11-07T08:00:00.000Z'
-                      fecha_fin: null
-                      id_estado_operacion: d4e5f6a7-b8c9-4d0e-9f1a-2b3c4d5e6f70
+        '400':
+          description: La petición está mal formada. No se guarda nada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                campo_ausente:
+                  summary: Falta un campo obligatorio (aquí, `id_operacion`)
+                  value:
+                    codigo: VALIDACION
+                    mensaje: El campo id_operacion es obligatorio
+                descripcion_vacia:
+                  summary: '`descripcion` ausente, vacía o solo espacios'
+                  value:
+                    codigo: DESCRIPCION_VACIA
+                    mensaje: La descripción no puede estar vacía
+                severidad_invalida:
+                  summary: '`grado_severidad` no es entero o está fuera de 1 a 5'
+                  value:
+                    codigo: SEVERIDAD_INVALIDA
+                    mensaje: El grado de severidad debe ser un entero entre 1 y 5
+                uuid_mal_formado:
+                  summary: Un identificador no tiene formato UUID
+                  value:
+                    codigo: VALIDACION
+                    mensaje: El campo id_operacion debe ser un UUID
+                campo_desconocido:
+                  summary: La petición incluye un campo no definido (por ejemplo `id_usuario`)
+                  value:
+                    codigo: VALIDACION
+                    mensaje: El campo id_usuario no está permitido
+        '401':
+          description: No autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                token_ausente_o_invalido:
+                  summary: Sin token, o token vencido o inválido
+                  value:
+                    codigo: NO_AUTENTICADO
+                    mensaje: Debe iniciar sesión para registrar una incidencia
+        '409':
+          description: La operación existe, pero no está en estado `En curso`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                operacion_no_activa:
+                  summary: Operación finalizada o cancelada
+                  value:
+                    codigo: OPERACION_NO_ACTIVA
+                    mensaje: La operación no admite incidencias porque no está en curso
+        '422':
+          description: La petición es válida en forma, pero un identificador no corresponde a nada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                tipo_inexistente:
+                  summary: El tipo de incidencia no existe
+                  value:
+                    codigo: TIPO_INEXISTENTE
+                    mensaje: No existe un tipo de incidencia con ese id
+                operacion_inexistente:
+                  summary: La operación no existe
+                  value:
+                    codigo: OPERACION_INEXISTENTE
+                    mensaje: No existe una operación con ese id
+        '500':
+          description: |
+            Falla del servidor, incluida una configuración incompleta del sistema
+            (por ejemplo, que no esté definido el estado inicial `Abierta`). No se guarda nada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                error_interno:
+                  summary: Error inesperado
+                  value:
+                    codigo: ERROR_INTERNO
+                    mensaje: Ocurrió un error inesperado. Intente nuevamente.
 
 components:
   securitySchemes:
@@ -151,6 +206,7 @@ components:
   schemas:
     CrearIncidenciaRequest:
       type: object
+      additionalProperties: false
       required:
         - id_tipo_incidencia
         - descripcion
@@ -160,20 +216,28 @@ components:
         id_tipo_incidencia:
           type: string
           format: uuid
-          description: 'Debe existir en `shared.tipoincidencia`.'
+          description: Id de un tipo de incidencia existente. Si no existe, 422 `TIPO_INEXISTENTE`.
         descripcion:
           type: string
-          minLength: 1
-          description: 'Texto no vacío; el servidor recorta espacios.'
+          pattern: '\S'
+          maxLength: 1000
+          description: |
+            Texto con al menos un carácter que no sea espacio. El servidor quita los espacios
+            de los extremos antes de guardarlo. Si falta o es solo espacios, 400 `DESCRIPCION_VACIA`.
         grado_severidad:
           type: integer
           minimum: 1
           maximum: 5
-          description: 'Entero de 1 a 5. El valor 5 intenta notificar a supervisores.'
+          description: |
+            Entero de 1 a 5. Fuera de rango o no entero, 400 `SEVERIDAD_INVALIDA`.
+            El valor 5 notifica a los supervisores.
         id_operacion:
           type: string
           format: uuid
-          description: 'Debe existir y estar en estado `En curso`.'
+          description: |
+            Id de una operación existente y en estado `En curso`.
+            Si no existe, 422 `OPERACION_INEXISTENTE`; si existe pero no está en curso,
+            409 `OPERACION_NO_ACTIVA`.
 
     Incidencia:
       type: object
@@ -194,7 +258,7 @@ components:
         codigo:
           type: string
           pattern: '^INC-\d{4}-\d{4}$'
-          description: 'Patrón `INC-YYMM-NNNN`.'
+          description: 'Formato `INC-AAMM-NNNN` (año y mes de dos cifras, secuencia de cuatro).'
           examples:
             - INC-2611-0001
         id_tipo_incidencia:
@@ -209,87 +273,37 @@ components:
         fecha_hora:
           type: string
           format: date-time
-          description: Timestamp fijado por el servidor.
+          description: Instante del registro, fijado por el servidor.
         id_estado_incidencia:
           type: string
           format: uuid
+          description: Estado inicial. Para un alta exitosa corresponde a `Abierta`.
         id_operacion:
           type: string
           format: uuid
         id_usuario:
           type: string
           format: uuid
-          description: Usuario autenticado que registró la incidencia.
-        tipo_incidencia:
-          $ref: '#/components/schemas/TipoIncidencia'
-        estado_incidencia:
-          $ref: '#/components/schemas/EstadoIncidencia'
-        operacion:
-          $ref: '#/components/schemas/OperacionResumen'
-
-    TipoIncidencia:
-      type: object
-      required:
-        - id_tipo_incidencia
-        - nombre
-      properties:
-        id_tipo_incidencia:
-          type: string
-          format: uuid
-        nombre:
-          type: string
-
-    EstadoIncidencia:
-      type: object
-      required:
-        - id_estado_incidencia
-        - nombre
-      properties:
-        id_estado_incidencia:
-          type: string
-          format: uuid
-        nombre:
-          type: string
-          description: 'Para un alta exitosa es `Abierta`.'
-
-    OperacionResumen:
-      type: object
-      required:
-        - id_operacion
-        - codigo
-        - fecha_inicio
-        - id_estado_operacion
-      properties:
-        id_operacion:
-          type: string
-          format: uuid
-        codigo:
-          type: string
-        fecha_inicio:
-          type: string
-          format: date-time
-        fecha_fin:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        id_estado_operacion:
-          type: string
-          format: uuid
+          description: Usuario autenticado que registró la incidencia. Sale del token.
 
     Error:
       type: object
       required:
-        - statusCode
-        - message
+        - codigo
+        - mensaje
       properties:
-        statusCode:
-          type: integer
-          minimum: 400
-          maximum: 599
-        message:
+        codigo:
           type: string
-          description: Mensaje del caso de uso, del guard o del framework.
-        error:
+          description: Identificador estable y legible por máquina. Decidir siempre por este campo.
+          enum:
+            - VALIDACION
+            - DESCRIPCION_VACIA
+            - SEVERIDAD_INVALIDA
+            - NO_AUTENTICADO
+            - OPERACION_NO_ACTIVA
+            - TIPO_INEXISTENTE
+            - OPERACION_INEXISTENTE
+            - ERROR_INTERNO
+        mensaje:
           type: string
-          description: 'Etiqueta HTTP de NestJS en los `BadRequestException`.'
+          description: Texto para humanos. Puede cambiar sin subir la versión del contrato.
