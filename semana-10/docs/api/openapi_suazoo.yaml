@@ -1,0 +1,153 @@
+openapi: 3.1.0
+info:
+  title: Lumiere - API de boletos
+  version: 1.0.0
+  description: |
+    Contrato del endpoint "Reservar boleto" del sistema Lumiere.
+
+    Versionado: la versión mayor va en la ruta (`/v1`). Subiría a `/v2` cualquier cambio
+    que rompa a un cliente existente: quitar o renombrar un campo, volver obligatorio uno
+    opcional, o cambiar un código HTTP o un `codigo` de error. Agregar campos opcionales
+    a la respuesta o un `codigo` nuevo sube solo la versión menor (1.1.0).
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local
+paths:
+  /v1/funciones/{funcion_id}/boletos:
+    post:
+      operationId: reservarBoleto
+      summary: Reservar un boleto para un asiento de una función
+      description: |
+        Crea un boleto para el asiento indicado en la función indicada.
+
+        Repetir la misma llamada NO es idempotente: la segunda vez el asiento ya está
+        ocupado y se responde 409 `ASIENTO_OCUPADO`, aunque el nombre del cliente sea el mismo.
+        Ante dos peticiones simultáneas por el mismo asiento, exactamente una recibe 201
+        y la otra 409.
+
+        Esta versión no valida que la función exista: `funcion_id` es un identificador
+        opaco. No existe el error 404 hasta que haya un recurso `funciones`.
+      tags: [Boletos]
+      parameters:
+        - name: funcion_id
+          in: path
+          required: true
+          description: Identificador de la función. Texto de 1 a 50 caracteres.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+          example: FUNC-001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaPeticion'
+            example:
+              asiento: A5
+              nombre_cliente: Carlos Chávez
+      responses:
+        '201':
+          description: Boleto creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Boleto'
+              example:
+                id: 3f6c1b52-8a53-4c0e-9d57-2b0f6c0f8a11
+                funcion_id: FUNC-001
+                asiento: A5
+                nombre_cliente: Carlos Chávez
+                reservado_en: '2026-11-11T19:30:05.123456'
+        '400':
+          description: |
+            La petición es inválida: falta un campo obligatorio, un campo viene vacío
+            o con formato incorrecto, o el cuerpo no es JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                codigo: DATOS_INVALIDOS
+                mensaje: La petición tiene datos inválidos
+                detalles:
+                  - { campo: nombre_cliente, problema: Campo obligatorio }
+        '409':
+          description: El asiento ya está ocupado en esa función
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                codigo: ASIENTO_OCUPADO
+                mensaje: El asiento A5 ya está ocupado
+        '500':
+          description: Error interno. No se guardó ningún boleto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                codigo: ERROR_INTERNO
+                mensaje: Error interno del servidor
+components:
+  schemas:
+    ReservaPeticion:
+      type: object
+      additionalProperties: false
+      required: [asiento, nombre_cliente]
+      properties:
+        asiento:
+          type: string
+          description: Fila (una letra mayúscula) y número de uno o dos dígitos.
+          pattern: '^[A-Z][0-9]{1,2}$'
+          maxLength: 10
+          examples: [A5, B12]
+        nombre_cliente:
+          type: string
+          description: Nombre de quien reserva. No puede quedar vacío ni solo con espacios.
+          minLength: 1
+          maxLength: 150
+          pattern: '\S'
+          examples: [Carlos Chávez]
+    Boleto:
+      type: object
+      required: [id, funcion_id, asiento, nombre_cliente, reservado_en]
+      properties:
+        id:
+          type: string
+          format: uuid
+        funcion_id:
+          type: string
+          maxLength: 50
+        asiento:
+          type: string
+          maxLength: 10
+        nombre_cliente:
+          type: string
+          maxLength: 150
+        reservado_en:
+          type: string
+          format: date-time
+          description: Momento de la reserva, hora del servidor, sin zona horaria.
+    Error:
+      type: object
+      required: [codigo, mensaje]
+      properties:
+        codigo:
+          type: string
+          enum: [DATOS_INVALIDOS, ASIENTO_OCUPADO, ERROR_INTERNO]
+          description: Código estable, pensado para que lo lea un programa.
+        mensaje:
+          type: string
+          description: Texto para una persona. Puede cambiar sin subir la versión.
+        detalles:
+          type: array
+          description: Solo en DATOS_INVALIDOS. Un elemento por campo con problema.
+          items:
+            type: object
+            required: [campo, problema]
+            properties:
+              campo: { type: string }
+              problema: { type: string }
