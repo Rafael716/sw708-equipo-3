@@ -2,10 +2,24 @@ openapi: 3.1.0
 
 info:
   title: Incidencias
-  version: 1.0.0
+  version: 1.1.0
   summary: Registro de una incidencia asociada a una operación en curso.
   description: |
     Contrato del endpoint de alta de incidencias. Se escribió antes de la implementación.
+
+    ## Historial de cambios
+
+    - **1.1.0**: correcciones del acta de ambigüedades levantada por el Equipo 1
+      (`acta-ambiguedades.md`). Se agrega el campo opcional `campo` al cuerpo de error
+      (por eso sube la versión MINOR) y se documentan reglas que antes no estaban escritas.
+    - **1.0.0**: versión entregada al equipo consumidor.
+
+    ## Autenticación
+
+    El token JWT se obtiene con `POST /auth/login` (fuera de este contrato) y se envía en
+    la cabecera `Authorization: Bearer <token>`. En esta versión no hay roles: cualquier
+    usuario autenticado puede registrar una incidencia sobre cualquier operación `En curso`.
+    Por eso no existe la respuesta `403`.
 
     ## Versionado
 
@@ -23,15 +37,38 @@ info:
 
     Todo error devuelve el mismo cuerpo: `codigo` (estable, para máquinas) y `mensaje`
     (texto para humanos, puede cambiar sin subir la versión). Los clientes deben
-    decidir por `codigo`, nunca por `mensaje`.
+    decidir por `codigo`, nunca por `mensaje`. Cuando el error es de un campo de la
+    petición, el cuerpo trae además `campo` con su nombre, para no tener que leer `mensaje`.
 
     | Status | Cuándo |
     |---|---|
-    | 400 | La petición está mal formada: campo ausente, tipo o formato incorrecto, valor fuera de rango. |
+    | 400 | La petición está mal formada: campo ausente, tipo o formato incorrecto, valor fuera de rango, cuerpo vacío, JSON inválido o `Content-Type` distinto de `application/json`. |
     | 401 | Falta el token o no es válido. |
     | 409 | La operación existe pero su estado no admite incidencias. |
     | 422 | La petición está bien formada pero hace referencia a algo que no existe. |
     | 500 | Falla del servidor. No es culpa del cliente. |
+
+    **Un solo error por respuesta.** Si la petición tiene varios problemas a la vez, el
+    servidor revisa en este orden y responde con el primero que encuentra:
+
+    1. `401`: autenticación.
+    2. `400`: forma de la petición (formato del cuerpo, luego los campos).
+    3. `422`: primero `id_tipo_incidencia` (`TIPO_INEXISTENTE`), luego `id_operacion` (`OPERACION_INEXISTENTE`).
+    4. `409`: estado de la operación (`OPERACION_NO_ACTIVA`).
+
+    **Campos ausentes y `null`.** Un campo con valor `null` se trata igual que un campo
+    ausente. Cada campo obligatorio ausente tiene su código:
+
+    | Campo ausente o `null` | Respuesta |
+    |---|---|
+    | `descripcion` | 400 `DESCRIPCION_VACIA` |
+    | `grado_severidad` | 400 `SEVERIDAD_INVALIDA` |
+    | `id_tipo_incidencia` | 400 `VALIDACION` |
+    | `id_operacion` | 400 `VALIDACION` |
+
+    **Tipos incorrectos.** `grado_severidad` como texto (`"4"`) o decimal (`4.5`) da 400
+    `SEVERIDAD_INVALIDA`. Cualquier otro campo con un tipo distinto al del esquema
+    (por ejemplo `descripcion: 123`) da 400 `VALIDACION`.
   contact:
     name: Equipo 3 — SW708
   license:
@@ -59,12 +96,30 @@ paths:
         **Qué promete cuando responde 201**
         - La incidencia queda guardada con estado `Abierta` y un `codigo` único.
         - `id_usuario` y `fecha_hora` los fija el servidor y no se pueden modificar después.
-        - Si `grado_severidad` es 5, se notifica a los supervisores. La notificación es
-          de mejor esfuerzo: si falla, la incidencia se conserva y la respuesta sigue siendo 201.
+        - Si `grado_severidad` es 5, se intenta notificar a los supervisores. La notificación
+          es un proceso secundario y de mejor esfuerzo: no bloquea el registro. Si falla, la
+          incidencia se conserva y la respuesta sigue siendo 201. **El 201 no garantiza que
+          la notificación se haya enviado**, y la respuesta no informa su resultado.
 
         **Qué hace con campos que no conoce**
         Cualquier campo fuera de los cuatro definidos se rechaza con 400 `VALIDACION`.
         En particular, `id_usuario` no se acepta: siempre sale del token.
+
+        **De dónde salen los identificadores** (endpoints del sistema, fuera de este contrato)
+        - `id_tipo_incidencia`: `GET /monitoreo/incidencias/tipos`.
+        - `id_operacion`: `GET /monitoreo/operaciones`.
+        - Catálogo de estados de incidencia: `GET /monitoreo/incidencias/estados`.
+
+        **Repetir la llamada**
+        La operación **no es idempotente**: repetir la misma petición crea otra incidencia
+        con otro `codigo`. Esta versión no acepta `Idempotency-Key`. Si se corta la conexión
+        antes de recibir la respuesta, el cliente no sabe si se guardó: antes de reintentar
+        debe consultar si la incidencia existe (ver «Consultar lo creado»).
+
+        **Consultar lo creado**
+        La respuesta 201 trae `id_incidencia`. La incidencia se consulta con
+        `GET /monitoreo/incidencias/{id_incidencia}`, que no forma parte de este contrato.
+        No se envía cabecera `Location` en esta versión (posible cambio MINOR futuro).
       security:
         - bearerAuth: []
       requestBody:
@@ -90,7 +145,9 @@ paths:
                   id_operacion: 0b7e4c2a-9d31-4f6a-8c5e-1a2b3c4d5e6f
       responses:
         '201':
-          description: Incidencia creada.
+          description: |
+            Incidencia creada con estado `Abierta`. Sin cabecera `Location`.
+            No garantiza que la notificación a supervisores (severidad 5) se haya enviado.
           content:
             application/json:
               schema:
@@ -116,30 +173,52 @@ paths:
                 $ref: '#/components/schemas/Error'
               examples:
                 campo_ausente:
-                  summary: Falta un campo obligatorio (aquí, `id_operacion`)
+                  summary: Falta `id_tipo_incidencia` o `id_operacion` (aquí, `id_operacion`), o viene en null
                   value:
                     codigo: VALIDACION
                     mensaje: El campo id_operacion es obligatorio
+                    campo: id_operacion
                 descripcion_vacia:
-                  summary: '`descripcion` ausente, vacía o solo espacios'
+                  summary: '`descripcion` ausente, null, vacía o solo espacios'
                   value:
                     codigo: DESCRIPCION_VACIA
                     mensaje: La descripción no puede estar vacía
+                    campo: descripcion
+                descripcion_muy_larga:
+                  summary: '`descripcion` supera 1000 caracteres después de quitar los espacios de los extremos'
+                  value:
+                    codigo: VALIDACION
+                    mensaje: La descripción no puede superar 1000 caracteres
+                    campo: descripcion
                 severidad_invalida:
-                  summary: '`grado_severidad` no es entero o está fuera de 1 a 5'
+                  summary: '`grado_severidad` ausente, null, texto, decimal o fuera de 1 a 5'
                   value:
                     codigo: SEVERIDAD_INVALIDA
                     mensaje: El grado de severidad debe ser un entero entre 1 y 5
+                    campo: grado_severidad
+                tipo_incorrecto:
+                  summary: Un campo trae un tipo distinto al del esquema (aquí, `descripcion` numérica)
+                  value:
+                    codigo: VALIDACION
+                    mensaje: El campo descripcion debe ser texto
+                    campo: descripcion
                 uuid_mal_formado:
                   summary: Un identificador no tiene formato UUID
                   value:
                     codigo: VALIDACION
                     mensaje: El campo id_operacion debe ser un UUID
+                    campo: id_operacion
                 campo_desconocido:
                   summary: La petición incluye un campo no definido (por ejemplo `id_usuario`)
                   value:
                     codigo: VALIDACION
                     mensaje: El campo id_usuario no está permitido
+                    campo: id_usuario
+                cuerpo_no_json:
+                  summary: Cuerpo vacío, JSON inválido o `Content-Type` distinto de `application/json`
+                  value:
+                    codigo: VALIDACION
+                    mensaje: El cuerpo de la petición debe ser un JSON válido
         '401':
           description: No autenticado.
           content:
@@ -153,7 +232,15 @@ paths:
                     codigo: NO_AUTENTICADO
                     mensaje: Debe iniciar sesión para registrar una incidencia
         '409':
-          description: La operación existe, pero no está en estado `En curso`.
+          description: |
+            La operación existe, pero no está en estado `En curso`.
+
+            | Estado de la operación | ¿Admite incidencias? |
+            |---|---|
+            | `En curso` | Sí |
+            | `Pendiente` | No: 409 `OPERACION_NO_ACTIVA` |
+            | `Completada` | No: 409 `OPERACION_NO_ACTIVA` |
+            | `Cancelada` | No: 409 `OPERACION_NO_ACTIVA` |
           content:
             application/json:
               schema:
@@ -165,7 +252,9 @@ paths:
                     codigo: OPERACION_NO_ACTIVA
                     mensaje: La operación no admite incidencias porque no está en curso
         '422':
-          description: La petición es válida en forma, pero un identificador no corresponde a nada.
+          description: |
+            La petición es válida en forma, pero un identificador no corresponde a nada.
+            Si los dos identificadores son inexistentes, responde `TIPO_INEXISTENTE` (se revisa primero).
           content:
             application/json:
               schema:
@@ -202,6 +291,9 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        Token que devuelve `POST /auth/login` (fuera de este contrato). Sin roles en esta
+        versión: basta con estar autenticado.
 
   schemas:
     CrearIncidenciaRequest:
@@ -216,28 +308,35 @@ components:
         id_tipo_incidencia:
           type: string
           format: uuid
-          description: Id de un tipo de incidencia existente. Si no existe, 422 `TIPO_INEXISTENTE`.
+          description: |
+            Id de un tipo de incidencia existente; los valores válidos se consultan en
+            `GET /monitoreo/incidencias/tipos`. Ausente, null o no UUID: 400 `VALIDACION`.
+            Si no existe, 422 `TIPO_INEXISTENTE`.
         descripcion:
           type: string
           pattern: '\S'
           maxLength: 1000
           description: |
-            Texto con al menos un carácter que no sea espacio. El servidor quita los espacios
-            de los extremos antes de guardarlo. Si falta o es solo espacios, 400 `DESCRIPCION_VACIA`.
+            Texto con al menos un carácter que no sea espacio. Saneamiento: el servidor quita
+            primero los espacios de los extremos y **después** mide el largo; el límite es de
+            1000 caracteres sobre el texto ya recortado. Se guarda y se devuelve recortado.
+            Ausente, null, vacía o solo espacios: 400 `DESCRIPCION_VACIA`.
+            Más de 1000 caracteres o tipo distinto de texto: 400 `VALIDACION`.
         grado_severidad:
           type: integer
           minimum: 1
           maximum: 5
           description: |
-            Entero de 1 a 5. Fuera de rango o no entero, 400 `SEVERIDAD_INVALIDA`.
-            El valor 5 notifica a los supervisores.
+            Entero de 1 a 5. Ausente, null, texto (`"4"`), decimal (`4.5`) o fuera de rango:
+            400 `SEVERIDAD_INVALIDA`. El valor 5 dispara la notificación a supervisores.
         id_operacion:
           type: string
           format: uuid
           description: |
-            Id de una operación existente y en estado `En curso`.
-            Si no existe, 422 `OPERACION_INEXISTENTE`; si existe pero no está en curso,
-            409 `OPERACION_NO_ACTIVA`.
+            Id de una operación existente y en estado `En curso`; las operaciones se
+            consultan en `GET /monitoreo/operaciones`. Ausente, null o no UUID: 400 `VALIDACION`.
+            Si no existe, 422 `OPERACION_INEXISTENTE`; si existe pero no está `En curso`
+            (`Pendiente`, `Completada` o `Cancelada`), 409 `OPERACION_NO_ACTIVA`.
 
     Incidencia:
       type: object
@@ -257,8 +356,12 @@ components:
           format: uuid
         codigo:
           type: string
-          pattern: '^INC-\d{4}-\d{4}$'
-          description: 'Formato `INC-AAMM-NNNN` (año y mes de dos cifras, secuencia de cuatro).'
+          pattern: '^INC-\d{4}-\d{4,}$'
+          description: |
+            Formato `INC-AAMM-NNNN`. `AAMM` es el año y el mes en **UTC**, los mismos de
+            `fecha_hora` (una incidencia del 30 de noviembre a las 23:30 en Lima es
+            `2026-12-01T04:30Z` y lleva `2612`). La secuencia se reinicia cada mes y tiene
+            al menos cuatro dígitos: después de `9999` sigue `10000`.
           examples:
             - INC-2611-0001
         id_tipo_incidencia:
@@ -277,7 +380,9 @@ components:
         id_estado_incidencia:
           type: string
           format: uuid
-          description: Estado inicial. Para un alta exitosa corresponde a `Abierta`.
+          description: |
+            Estado inicial. En un alta exitosa **siempre** es el UUID del estado `Abierta`.
+            El catálogo de estados se consulta en `GET /monitoreo/incidencias/estados`.
         id_operacion:
           type: string
           format: uuid
@@ -307,3 +412,10 @@ components:
         mensaje:
           type: string
           description: Texto para humanos. Puede cambiar sin subir la versión del contrato.
+        campo:
+          type: string
+          description: |
+            Nombre del campo de la petición que causó el error (desde 1.1.0). Solo viene en
+            errores 400 asociados a un campo; el cliente lo usa en lugar de leer `mensaje`.
+          examples:
+            - id_operacion
