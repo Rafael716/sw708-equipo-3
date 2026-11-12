@@ -31,21 +31,21 @@ Rutas relativas a `src/repo/app/backend/src/monitoreo/`.
 
 | # | Estado | Dónde se cumple | Prueba |
 |---|---|---|---|
-| 1 | Documentación | Sin cambio de código: no hay roles; el endpoint usa `JwtAuthGuard` | `token_ausente_o_invalido: sin token -> 401` |
+| 1 | ✅ Implementado | No hay roles: el endpoint usa `JwtAuthGuard`. El `401` responde `{ codigo: NO_AUTENTICADO, mensaje }` (`http/errores-contrato.filter.ts`) | `token_ausente_o_invalido: sin token -> 401` |
 | 2 | Documentación | Sin cambio de código: los `GET` de catálogos ya existen | — |
 | 3 | ✅ Implementado | `http/incidencias-v1.controller.ts` (`aContrato`) | `A3: id_estado_incidencia es el de «Abierta»` |
 | 4 | ✅ Implementado | `dominio/registrar-incidencia.use-case.ts` (descripción y severidad) y `http/incidencias-v1.controller.ts` (`validarForma`, identificadores) | `descripcion_vacia (A4: ausente)`, `severidad_invalida (A4: ausente)`, `campo_ausente` |
 | 5 | ✅ Implementado | `http/incidencias-v1.controller.ts` (`validarForma`) y `dominio/registrar-incidencia.use-case.ts` | Pruebas `A5: …` (null, `"4"`, `4.5`, `descripcion` numérica) |
-| 6 | ⚠️ Parcial | Orden `401` → `400` → `422` → `409` y tipo antes que operación: implementado. **Pendiente:** `422 OPERACION_INEXISTENTE`; hoy una operación inexistente responde `409` | `A6: tipo y operación con problemas a la vez`; pendiente `A6 operacion_inexistente` |
+| 6 | ✅ Implementado | Orden `401` → `400` → `422` → `409`. El puerto devuelve el estado de la operación o `null` (`dominio/incidencias.port.ts`, `estadoDeOperacion`); el caso de uso responde `OPERACION_INEXISTENTE` antes de evaluar el estado | `A6: tipo y operación con problemas a la vez`, `A6 operacion_inexistente`, `A6: rechaza operación inexistente` (dominio) |
 | 7 | ✅ Implementado | `dominio/errores-incidencia.ts` (`ErrorDeIncidencia` con `codigo` y `campo`) y el adaptador, que lo traduce al cuerpo `{codigo, mensaje, campo}` | Todas las pruebas `400` verifican `campo` |
-| 8 | ⚠️ Parcial | Recorte de espacios: implementado. **Pendiente:** el límite de 1000 caracteres | `A8: devuelve la descripción sin los espacios`; pendiente `A8 descripcion_muy_larga` |
-| 9 | ⚠️ Parcial | `Content-Type` distinto de JSON y cuerpo vacío: implementado en `validarForma`. **Pendiente:** el JSON inválido responde con el formato por defecto de Nest | `A9 cuerpo_no_json` (2 pruebas); pendiente `A9 JSON inválido` |
+| 8 | ✅ Implementado | `dominio/registrar-incidencia.use-case.ts` (`LARGO_MAXIMO_DESCRIPCION`): recorta y después mide | `A8: devuelve la descripción sin los espacios`, `A8 descripcion_muy_larga` y 3 pruebas `A8:` de dominio (1000, 1001, 1000 con espacios) |
+| 9 | ✅ Implementado | `Content-Type` distinto de JSON y cuerpo vacío: `validarForma`. JSON inválido: `http/errores-contrato.filter.ts`, filtro global registrado en `main.ts` que solo actúa en `/v1/incidencias` | `A9 cuerpo_no_json` (3 pruebas); `las demás rutas conservan el formato de error de Nest` |
 | 10 | ✅ Implementado | Sin `Idempotency-Key`: cada llamada crea una incidencia | `A10: repetir la misma petición crea otra incidencia` |
 | 11 | Documentación | Sin cambio de código: `GET /monitoreo/incidencias/{id}` ya existe | — |
-| 12 | ⏳ Pendiente | Distinguir `Pendiente`, `Completada` y `Cancelada` requiere el mismo cambio del puerto que el punto 6 | Pendiente `A12` |
-| 13 | ⚠️ Parcial | Sin catálogo de notificaciones, `notificarSupervisores` no bloquea el alta (`infraestructura/incidencias-typeorm.adapter.ts`). **Pendiente:** si falla el guardado de la notificación, el error llega al endpoint y responde `500` aunque la incidencia ya se guardó; el contrato promete `201` | Pruebas de dominio de notificación (`registrar-incidencia.spec.ts`); pendiente la de falla |
-| 14 | ⏳ Pendiente de decisión del equipo | `siguienteCodigo()` del adaptador TypeORM todavía usa la hora local | — |
-
-También pendiente: el `401` responde con el formato por defecto de Nest y no con `{ codigo: NO_AUTENTICADO, mensaje }`.
+| 12 | ✅ Implementado | La regla «solo `En curso`» pasó del adaptador TypeORM al dominio (`ESTADO_OPERACION_ADMITE_INCIDENCIAS`) | `A12 operacion_no_activa` (Pendiente, Completada, Cancelada) en el endpoint y en el dominio, con los dos adaptadores |
+| 13 | ✅ Implementado | El caso de uso atrapa la falla de `notificarSupervisores`: la incidencia queda guardada y el alta responde `201` | `A13: si falla la notificación, la incidencia crítica igual queda registrada` |
+| 14 | ✅ Implementado | `siguienteCodigo()` usa año y mes UTC en los dos adaptadores. Supone que la base guarda `fecha_hora` en UTC (zona por defecto en Supabase y Render) | `A14: el adaptador TypeORM usa año y mes UTC (2612)` (incluye la secuencia `10000`), `A14: el adaptador en memoria también usa UTC` |
 
 El `POST /monitoreo/incidencias` anterior se retiró: el alta de incidencias es solo `POST /v1/incidencias`.
+
+**Límite de las pruebas:** usan el adaptador en memoria, un *stub* de TypeORM y un guard de prueba. No se probó contra la base de datos ni con un JWT real.
