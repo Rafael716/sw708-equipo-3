@@ -54,29 +54,32 @@ export class IncidenciasTypeormAdapter implements Incidencias {
     return { idEstadoIncidencia: estado.id_estado_incidencia };
   }
 
-  async operacionEstaActiva(idOperacion: string): Promise<boolean> {
+  async estadoDeOperacion(idOperacion: string): Promise<string | null> {
     const operacion = await this.operacionRepository.findOne({
       where: { id_operacion: idOperacion },
       relations: ['estado_operacion'],
     });
-    if (!operacion?.estado_operacion) {
-      return false;
+    if (!operacion) {
+      return null;
     }
-    return operacion.estado_operacion.nombre === 'En curso';
+    // Existe pero sin estado: no está «En curso», el dominio responde 409.
+    return operacion.estado_operacion?.nombre ?? '';
   }
 
   async siguienteCodigo(): Promise<string> {
+    // Acta A14: AAMM en UTC, igual que fecha_hora. Supone que fecha_hora se
+    // guarda en UTC (zona por defecto de la base en Supabase/Render).
     const fecha = new Date();
-    const año = fecha.getFullYear().toString().slice(-2);
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const año = fecha.getUTCFullYear().toString().slice(-2);
+    const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
 
     const count = await this.incidenciaRepository
       .createQueryBuilder('incidencia')
       .where('EXTRACT(YEAR FROM incidencia.fecha_hora) = :year', {
-        year: fecha.getFullYear(),
+        year: fecha.getUTCFullYear(),
       })
       .andWhere('EXTRACT(MONTH FROM incidencia.fecha_hora) = :month', {
-        month: fecha.getMonth() + 1,
+        month: fecha.getUTCMonth() + 1,
       })
       .getCount();
 

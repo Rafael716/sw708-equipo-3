@@ -79,10 +79,14 @@ import { IncidenciasService } from './services/incidencias.service';
 import { OperacionesIncidenciasService } from './services/operaciones-incidencias.service';
 import { HallazgosService } from './services/hallazgos.service';
 import { ConciliacionService } from './services/conciliacion.service';
+import { MonitoreoModule } from '../monitoreo/monitoreo.module';
+import { AlertaOperativaPorIncidenciaConsumer } from './consumidores/alerta-operativa-por-incidencia.consumer';
+import { SuscripcionAlertaOperativa } from './consumidores/suscripcion-alerta-operativa';
 
 @Module({
   imports: [
     AuthModule,
+    MonitoreoModule,
     TypeOrmModule.forFeature([
       // Entidades propias de gestión marítima
       Puerto,
@@ -159,6 +163,8 @@ import { ConciliacionService } from './services/conciliacion.service';
     OperacionesIncidenciasService,
     HallazgosService,
     ConciliacionService,
+    AlertaOperativaPorIncidenciaConsumer,
+    SuscripcionAlertaOperativa,
   ],
 })
 export class GestionMaritimaModule { }

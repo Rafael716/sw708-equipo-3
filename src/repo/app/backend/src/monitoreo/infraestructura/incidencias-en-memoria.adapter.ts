@@ -7,7 +7,7 @@ import {
 /** Segundo adaptador del puerto Incidencias: sin base de datos (pruebas). */
 export class IncidenciasEnMemoriaAdapter implements Incidencias {
   private readonly tipos = new Set<string>();
-  private readonly operacionesActivas = new Set<string>();
+  private readonly estadosDeOperacion = new Map<string, string>();
   private estadoInicialId: string | null = null;
   private secuencia = 0;
   private readonly guardadas: IncidenciaDominio[] = [];
@@ -22,7 +22,11 @@ export class IncidenciasEnMemoriaAdapter implements Incidencias {
   }
 
   sembrarOperacionActiva(idOperacion: string): void {
-    this.operacionesActivas.add(idOperacion);
+    this.sembrarOperacion(idOperacion, 'En curso');
+  }
+
+  sembrarOperacion(idOperacion: string, estado: string): void {
+    this.estadosDeOperacion.set(idOperacion, estado);
   }
 
   listar(): IncidenciaDominio[] {
@@ -44,15 +48,16 @@ export class IncidenciasEnMemoriaAdapter implements Incidencias {
     return { idEstadoIncidencia: this.estadoInicialId };
   }
 
-  async operacionEstaActiva(idOperacion: string): Promise<boolean> {
-    return this.operacionesActivas.has(idOperacion);
+  async estadoDeOperacion(idOperacion: string): Promise<string | null> {
+    return this.estadosDeOperacion.get(idOperacion) ?? null;
   }
 
   async siguienteCodigo(): Promise<string> {
     this.secuencia += 1;
     const fecha = new Date();
-    const año = fecha.getFullYear().toString().slice(-2);
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    // Acta A14: AAMM en UTC, igual que el adaptador TypeORM.
+    const año = fecha.getUTCFullYear().toString().slice(-2);
+    const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
     const seq = this.secuencia.toString().padStart(4, '0');
     return `INC-${año}${mes}-${seq}`;
   }

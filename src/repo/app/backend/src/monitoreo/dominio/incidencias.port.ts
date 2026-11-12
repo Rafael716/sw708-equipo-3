@@ -37,8 +37,12 @@ export interface Incidencias {
   existeTipo(idTipoIncidencia: string): Promise<boolean>;
   /** Estado inicial de negocio: nombre «Abierta». */
   obtenerEstadoInicial(): Promise<{ idEstadoIncidencia: string } | null>;
-  /** Operación con estado «En curso» (activa). */
-  operacionEstaActiva(idOperacion: string): Promise<boolean>;
+  /**
+   * Nombre del estado de la operación (por ejemplo «En curso», «Completada»),
+   * o null si la operación no existe (acta A6). Qué estados admiten incidencias
+   * lo decide el dominio (acta A12).
+   */
+  estadoDeOperacion(idOperacion: string): Promise<string | null>;
   siguienteCodigo(): Promise<string>;
   /**
    * Persistencia de alta (registro inmutable de auditoría):

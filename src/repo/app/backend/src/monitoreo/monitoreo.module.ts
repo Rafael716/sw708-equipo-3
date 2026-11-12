@@ -74,7 +74,13 @@ import { VictoriaMetricsService } from './services/victoriametrics.service';
 import { IncidenciasTypeormAdapter } from './infraestructura/incidencias-typeorm.adapter';
 import { INCIDENCIAS_PORT } from './dominio/incidencias.port';
 import { RegistrarIncidenciaUseCase } from './dominio/registrar-incidencia.use-case';
+import { IncidenciasV1Controller } from './http/incidencias-v1.controller';
 import type { Incidencias } from './dominio/incidencias.port';
+import {
+  PUBLICADOR_EVENTOS,
+  type PublicadorEventos,
+} from './dominio/publicador-eventos.port';
+import { PublicadorEventosEnMemoria } from './infraestructura/publicador-eventos-en-memoria.adapter';
 
 @Module({
   imports: [
@@ -136,6 +142,8 @@ import type { Incidencias } from './dominio/incidencias.port';
     ImportadoresController,
     DocumentacionController,
     VmDemoController,
+    // Semana 10: POST /v1/incidencias según el contrato (adaptador HTTP)
+    IncidenciasV1Controller,
   ],
   providers: [
     OperacionesService,
@@ -148,10 +156,16 @@ import type { Incidencias } from './dominio/incidencias.port';
       provide: INCIDENCIAS_PORT,
       useExisting: IncidenciasTypeormAdapter,
     },
+    PublicadorEventosEnMemoria,
+    {
+      provide: PUBLICADOR_EVENTOS,
+      useExisting: PublicadorEventosEnMemoria,
+    },
     {
       provide: RegistrarIncidenciaUseCase,
-      useFactory: (port: Incidencias) => new RegistrarIncidenciaUseCase(port),
-      inject: [INCIDENCIAS_PORT],
+      useFactory: (port: Incidencias, publicador: PublicadorEventos) =>
+        new RegistrarIncidenciaUseCase(port, publicador),
+      inject: [INCIDENCIAS_PORT, PUBLICADOR_EVENTOS],
     },
     ReportesService,
     EntregasService,
@@ -164,6 +178,8 @@ import type { Incidencias } from './dominio/incidencias.port';
     ContenedoresService,
     SensoresService,
     GpsService,
+    PUBLICADOR_EVENTOS,
+    PublicadorEventosEnMemoria,
   ],
 })
 export class MonitoreoModule { }

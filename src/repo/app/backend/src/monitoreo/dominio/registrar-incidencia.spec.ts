@@ -2,6 +2,8 @@ import { RegistrarIncidenciaUseCase } from './registrar-incidencia.use-case';
 import { Incidencias } from './incidencias.port';
 import { IncidenciasEnMemoriaAdapter } from '../infraestructura/incidencias-en-memoria.adapter';
 import { IncidenciasTypeormAdapter } from '../infraestructura/incidencias-typeorm.adapter';
+import type { Repository } from 'typeorm';
+import type { Incidencia } from '../entities/incidencia.entity';
 
 const COMANDO_VALIDO = {
   idTipoIncidencia: 'tipo-1',
@@ -11,11 +13,21 @@ const COMANDO_VALIDO = {
   idUsuario: 'user-42',
 };
 
+/** Acta A12: operaciones que existen pero no admiten incidencias. */
+const OPERACIONES_NO_ACTIVAS: Record<string, string> = {
+  'op-pendiente': 'Pendiente',
+  'op-completada': 'Completada',
+  'op-cancelada': 'Cancelada',
+};
+
 function prepararMemoria(): IncidenciasEnMemoriaAdapter {
   const adaptador = new IncidenciasEnMemoriaAdapter();
   adaptador.sembrarTipo('tipo-1');
   adaptador.sembrarEstadoInicial('estado-abierta');
   adaptador.sembrarOperacionActiva('op-99');
+  for (const [id, estado] of Object.entries(OPERACIONES_NO_ACTIVAS)) {
+    adaptador.sembrarOperacion(id, estado);
+  }
   return adaptador;
 }
 
@@ -34,14 +46,18 @@ function prepararTypeormStub(): Incidencias {
     ),
   };
   const operacionRepo = {
-    findOne: jest.fn(async ({ where }: any) =>
-      where.id_operacion === 'op-99'
-        ? {
-            id_operacion: 'op-99',
-            estado_operacion: { nombre: 'En curso' },
-          }
-        : null,
-    ),
+    findOne: jest.fn(({ where }: { where: { id_operacion: string } }) => {
+      const estados: Record<string, string> = {
+        'op-99': 'En curso',
+        ...OPERACIONES_NO_ACTIVAS,
+      };
+      const nombre = estados[where.id_operacion];
+      return Promise.resolve(
+        nombre
+          ? { id_operacion: where.id_operacion, estado_operacion: { nombre } }
+          : null,
+      );
+    }),
   };
   const incidenciaRepo = {
     create: jest.fn((data: any) => data),
@@ -107,11 +123,23 @@ function suiteDominio(nombre: string, crearAdaptador: () => Incidencias) {
       ).rejects.toThrow('El grado de severidad debe ser un entero entre 1 y 5');
     });
 
-    it('rechaza operación que no está activa', async () => {
+    it('A6: rechaza operación inexistente con OPERACION_INEXISTENTE', async () => {
       await expect(
-        useCase.ejecutar({ ...COMANDO_VALIDO, idOperacion: 'op-inactiva' }),
-      ).rejects.toThrow('La operación no está activa');
+        useCase.ejecutar({ ...COMANDO_VALIDO, idOperacion: 'op-inexistente' }),
+      ).rejects.toMatchObject({ codigo: 'OPERACION_INEXISTENTE' });
     });
+
+    it.each(Object.entries(OPERACIONES_NO_ACTIVAS))(
+      'A12: rechaza operación %s (%s) con OPERACION_NO_ACTIVA',
+      async (idOperacion) => {
+        await expect(
+          useCase.ejecutar({ ...COMANDO_VALIDO, idOperacion }),
+        ).rejects.toMatchObject({
+          codigo: 'OPERACION_NO_ACTIVA',
+          message: 'La operación no está activa',
+        });
+      },
+    );
 
     it('rechaza si no hay estados configurados', async () => {
       const vacio = new IncidenciasEnMemoriaAdapter();
@@ -148,5 +176,100 @@ describe('RegistrarIncidenciaUseCase — notificación a supervisores (E3)', () 
     await useCase.ejecutar({ ...COMANDO_VALIDO, gradoSeveridad: 4 });
 
     expect(adaptador.listarNotificacionesSupervisores()).toHaveLength(0);
+  });
+});
+
+describe('Código de incidencia en UTC (acta A14)', () => {
+  // 30 de noviembre, 23:30 en Lima = 1 de diciembre, 04:30 UTC.
+  const LIMA_30_NOV_2330 = new Date('2026-12-01T04:30:00Z');
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: LIMA_30_NOV_2330 });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('A14: el adaptador TypeORM usa año y mes UTC (2612) y cuenta en ese mes', async () => {
+    const filtros: Record<string, number>[] = [];
+    const consulta = {
+      where: (_sql: string, p: Record<string, number>) => {
+        filtros.push(p);
+        return consulta;
+      },
+      andWhere: (_sql: string, p: Record<string, number>) => {
+        filtros.push(p);
+        return consulta;
+      },
+      getCount: () => Promise.resolve(9999),
+    };
+    const repo = {
+      createQueryBuilder: () => consulta,
+    } as unknown as Repository<Incidencia>;
+    const vacio = {} as never;
+    const adaptador = new IncidenciasTypeormAdapter(
+      repo,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+    );
+
+    // 9999 en el mes: la siguiente es 10000 (al menos cuatro dígitos).
+    await expect(adaptador.siguienteCodigo()).resolves.toBe('INC-2612-10000');
+    expect(filtros).toEqual([{ year: 2026 }, { month: 12 }]);
+  });
+
+  it('A14: el adaptador en memoria también usa UTC', async () => {
+    await expect(
+      new IncidenciasEnMemoriaAdapter().siguienteCodigo(),
+    ).resolves.toBe('INC-2612-0001');
+  });
+});
+
+describe('RegistrarIncidenciaUseCase — notificación de mejor esfuerzo (acta A13)', () => {
+  it('A13: si falla la notificación, la incidencia crítica igual queda registrada', async () => {
+    const adaptador = prepararMemoria();
+    jest
+      .spyOn(adaptador, 'notificarSupervisores')
+      .mockRejectedValue(new Error('Servicio de notificaciones caído'));
+    const useCase = new RegistrarIncidenciaUseCase(adaptador);
+
+    const creada = await useCase.ejecutar({
+      ...COMANDO_VALIDO,
+      gradoSeveridad: 5,
+    });
+
+    expect(creada.gradoSeveridad).toBe(5);
+    expect(adaptador.listar()).toHaveLength(1);
+  });
+});
+
+describe('RegistrarIncidenciaUseCase — largo de la descripción (acta A8)', () => {
+  const ejecutar = (descripcion: string) =>
+    new RegistrarIncidenciaUseCase(prepararMemoria()).ejecutar({
+      ...COMANDO_VALIDO,
+      descripcion,
+    });
+
+  it('A8: acepta exactamente 1000 caracteres', async () => {
+    const creada = await ejecutar('x'.repeat(1000));
+    expect(creada.descripcion).toHaveLength(1000);
+  });
+
+  it('A8: rechaza 1001 caracteres con VALIDACION en descripcion', async () => {
+    await expect(ejecutar('x'.repeat(1001))).rejects.toMatchObject({
+      codigo: 'VALIDACION',
+      campo: 'descripcion',
+    });
+  });
+
+  it('A8: mide después de recortar: 1000 caracteres más espacios se aceptan y se guardan recortados', async () => {
+    const creada = await ejecutar(`   ${'x'.repeat(1000)}   `);
+    expect(creada.descripcion).toBe('x'.repeat(1000));
   });
 });
