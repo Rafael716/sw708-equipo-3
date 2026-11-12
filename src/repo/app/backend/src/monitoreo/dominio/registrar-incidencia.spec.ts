@@ -177,6 +177,24 @@ describe('RegistrarIncidenciaUseCase — notificación a supervisores (E3)', () 
   });
 });
 
+describe('RegistrarIncidenciaUseCase — notificación de mejor esfuerzo (acta A13)', () => {
+  it('A13: si falla la notificación, la incidencia crítica igual queda registrada', async () => {
+    const adaptador = prepararMemoria();
+    jest
+      .spyOn(adaptador, 'notificarSupervisores')
+      .mockRejectedValue(new Error('Servicio de notificaciones caído'));
+    const useCase = new RegistrarIncidenciaUseCase(adaptador);
+
+    const creada = await useCase.ejecutar({
+      ...COMANDO_VALIDO,
+      gradoSeveridad: 5,
+    });
+
+    expect(creada.gradoSeveridad).toBe(5);
+    expect(adaptador.listar()).toHaveLength(1);
+  });
+});
+
 describe('RegistrarIncidenciaUseCase — largo de la descripción (acta A8)', () => {
   const ejecutar = (descripcion: string) =>
     new RegistrarIncidenciaUseCase(prepararMemoria()).ejecutar({

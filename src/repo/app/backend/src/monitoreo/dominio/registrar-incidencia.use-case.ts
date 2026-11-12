@@ -123,7 +123,13 @@ export class RegistrarIncidenciaUseCase {
     }
 
     if (comando.gradoSeveridad === SEVERIDAD_CRITICA) {
-      await this.incidencias.notificarSupervisores(guardada);
+      // Acta A13: la notificación es secundaria y de mejor esfuerzo. Si falla,
+      // la incidencia ya quedó guardada y el alta no se revierte ni falla.
+      try {
+        await this.incidencias.notificarSupervisores(guardada);
+      } catch {
+        // Sin reintento en esta versión; el registro principal ya está hecho.
+      }
     }
 
     return guardada;
