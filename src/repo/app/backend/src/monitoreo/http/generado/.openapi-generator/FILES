@@ -1,0 +1,6 @@
+api/IncidenciasApi.ts
+api/index.ts
+models/crear-incidencia-request.ts
+models/error.ts
+models/incidencia.ts
+models/index.ts

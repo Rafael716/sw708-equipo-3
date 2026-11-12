@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    // Código generado desde el contrato (pnpm run generate:api): no se edita a mano.
+    ignores: ['eslint.config.mjs', 'src/monitoreo/http/generado/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
