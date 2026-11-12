@@ -74,6 +74,7 @@ import { VictoriaMetricsService } from './services/victoriametrics.service';
 import { IncidenciasTypeormAdapter } from './infraestructura/incidencias-typeorm.adapter';
 import { INCIDENCIAS_PORT } from './dominio/incidencias.port';
 import { RegistrarIncidenciaUseCase } from './dominio/registrar-incidencia.use-case';
+import { IncidenciasV1Controller } from './http/incidencias-v1.controller';
 import type { Incidencias } from './dominio/incidencias.port';
 
 @Module({
@@ -136,6 +137,8 @@ import type { Incidencias } from './dominio/incidencias.port';
     ImportadoresController,
     DocumentacionController,
     VmDemoController,
+    // Semana 10: POST /v1/incidencias según el contrato (adaptador HTTP)
+    IncidenciasV1Controller,
   ],
   providers: [
     OperacionesService,
