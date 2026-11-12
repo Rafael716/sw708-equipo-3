@@ -490,7 +490,7 @@ El operador abre el formulario de incidencias desde el panel, selecciona el tipo
 
 | Flujo | Quién lo inicia | Pasos |
 |---|---|---|
-| Registrar una incidencia | Operador de Monitoreo | 1) Abre el formulario desde el panel<br/>2) Selecciona tipo, describe lo ocurrido e indica la operación marítima<br/>3) La UI valida campos y adjuntos<br/>4) `POST /monitoreo/incidencias` con JWT<br/>5) El caso de uso valida severidad, tipo y estado, genera `INC-YYMM-XXXX` y persiste |
+| Registrar una incidencia | Operador de Monitoreo | 1) Abre el formulario desde el panel<br/>2) Selecciona tipo, describe lo ocurrido e indica la operación marítima<br/>3) La UI valida campos y adjuntos<br/>4) `POST /v1/incidencias` con JWT (contrato `semana-10/docs/api/openapi.yaml`)<br/>5) El caso de uso valida severidad, tipo y estado, genera `INC-YYMM-XXXX` y persiste |
 | Vigilar buques en el mapa | Operador de Monitoreo | 1) Entra al panel de monitoreo<br/>2) Leaflet carga tiles de OpenStreetMap/ArcGIS<br/>3) Consulta posiciones GPS al backend<br/>4) Interpreta estados con código de colores (verde, amarillo, rojo) |
 | Actualizar estado operativo | Operador de Gestión Marítima | 1) Registra atraque, zarpe o descarga en Operaciones Marítimas<br/>2) El backend actualiza el estado en el esquema correspondiente<br/>3) Monitoreo refleja el cambio en su panel sin intervención manual (E1) |
 
