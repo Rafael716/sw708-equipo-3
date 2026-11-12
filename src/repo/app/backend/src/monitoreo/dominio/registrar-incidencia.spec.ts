@@ -2,6 +2,8 @@ import { RegistrarIncidenciaUseCase } from './registrar-incidencia.use-case';
 import { Incidencias } from './incidencias.port';
 import { IncidenciasEnMemoriaAdapter } from '../infraestructura/incidencias-en-memoria.adapter';
 import { IncidenciasTypeormAdapter } from '../infraestructura/incidencias-typeorm.adapter';
+import type { Repository } from 'typeorm';
+import type { Incidencia } from '../entities/incidencia.entity';
 
 const COMANDO_VALIDO = {
   idTipoIncidencia: 'tipo-1',
@@ -174,6 +176,58 @@ describe('RegistrarIncidenciaUseCase — notificación a supervisores (E3)', () 
     await useCase.ejecutar({ ...COMANDO_VALIDO, gradoSeveridad: 4 });
 
     expect(adaptador.listarNotificacionesSupervisores()).toHaveLength(0);
+  });
+});
+
+describe('Código de incidencia en UTC (acta A14)', () => {
+  // 30 de noviembre, 23:30 en Lima = 1 de diciembre, 04:30 UTC.
+  const LIMA_30_NOV_2330 = new Date('2026-12-01T04:30:00Z');
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: LIMA_30_NOV_2330 });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('A14: el adaptador TypeORM usa año y mes UTC (2612) y cuenta en ese mes', async () => {
+    const filtros: Record<string, number>[] = [];
+    const consulta = {
+      where: (_sql: string, p: Record<string, number>) => {
+        filtros.push(p);
+        return consulta;
+      },
+      andWhere: (_sql: string, p: Record<string, number>) => {
+        filtros.push(p);
+        return consulta;
+      },
+      getCount: () => Promise.resolve(9999),
+    };
+    const repo = {
+      createQueryBuilder: () => consulta,
+    } as unknown as Repository<Incidencia>;
+    const vacio = {} as never;
+    const adaptador = new IncidenciasTypeormAdapter(
+      repo,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+      vacio,
+    );
+
+    // 9999 en el mes: la siguiente es 10000 (al menos cuatro dígitos).
+    await expect(adaptador.siguienteCodigo()).resolves.toBe('INC-2612-10000');
+    expect(filtros).toEqual([{ year: 2026 }, { month: 12 }]);
+  });
+
+  it('A14: el adaptador en memoria también usa UTC', async () => {
+    await expect(
+      new IncidenciasEnMemoriaAdapter().siguienteCodigo(),
+    ).resolves.toBe('INC-2612-0001');
   });
 });
 

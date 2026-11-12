@@ -55,8 +55,9 @@ export class IncidenciasEnMemoriaAdapter implements Incidencias {
   async siguienteCodigo(): Promise<string> {
     this.secuencia += 1;
     const fecha = new Date();
-    const año = fecha.getFullYear().toString().slice(-2);
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    // Acta A14: AAMM en UTC, igual que el adaptador TypeORM.
+    const año = fecha.getUTCFullYear().toString().slice(-2);
+    const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
     const seq = this.secuencia.toString().padStart(4, '0');
     return `INC-${año}${mes}-${seq}`;
   }

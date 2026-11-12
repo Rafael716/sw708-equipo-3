@@ -67,17 +67,19 @@ export class IncidenciasTypeormAdapter implements Incidencias {
   }
 
   async siguienteCodigo(): Promise<string> {
+    // Acta A14: AAMM en UTC, igual que fecha_hora. Supone que fecha_hora se
+    // guarda en UTC (zona por defecto de la base en Supabase/Render).
     const fecha = new Date();
-    const año = fecha.getFullYear().toString().slice(-2);
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const año = fecha.getUTCFullYear().toString().slice(-2);
+    const mes = (fecha.getUTCMonth() + 1).toString().padStart(2, '0');
 
     const count = await this.incidenciaRepository
       .createQueryBuilder('incidencia')
       .where('EXTRACT(YEAR FROM incidencia.fecha_hora) = :year', {
-        year: fecha.getFullYear(),
+        year: fecha.getUTCFullYear(),
       })
       .andWhere('EXTRACT(MONTH FROM incidencia.fecha_hora) = :month', {
-        month: fecha.getMonth() + 1,
+        month: fecha.getUTCMonth() + 1,
       })
       .getCount();
 
