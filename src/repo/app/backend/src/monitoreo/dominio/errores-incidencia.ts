@@ -29,5 +29,3 @@ export class ErrorDeIncidencia extends Error {
     this.name = 'ErrorDeIncidencia';
   }
 }
-import { IsString } from 'class-validator';
-export const IMPORT_PROHIBIDO_PARA_VER_EL_ROJO = IsString;
