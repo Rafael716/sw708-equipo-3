@@ -11,6 +11,9 @@ export const SEVERIDAD_CRITICA = 5;
 /** Acta A8: largo máximo de la descripción, medido después de recortar espacios. */
 export const LARGO_MAXIMO_DESCRIPCION = 1000;
 
+/** Acta A12: único estado de operación que admite incidencias. */
+export const ESTADO_OPERACION_ADMITE_INCIDENCIAS = 'En curso';
+
 export class RegistrarIncidenciaUseCase {
   constructor(private readonly incidencias: Incidencias) {}
 
@@ -70,10 +73,21 @@ export class RegistrarIncidenciaUseCase {
       throw new ErrorDeIncidencia('TIPO_INEXISTENTE', 'Tipo de incidencia no válido');
     }
 
-    const operacionActiva = await this.incidencias.operacionEstaActiva(
+    // Acta A6: primero la existencia (422), después el estado (409).
+    const estadoOperacion = await this.incidencias.estadoDeOperacion(
       comando.idOperacion,
     );
-    if (!operacionActiva) {
+    if (estadoOperacion === null) {
+      throw new ErrorDeIncidencia(
+        'OPERACION_INEXISTENTE',
+        'No existe una operación con ese id',
+      );
+    }
+    // Acta A12: solo «En curso»; Pendiente, Completada o Cancelada -> 409.
+    if (
+      estadoOperacion.trim().toLowerCase() !==
+      ESTADO_OPERACION_ADMITE_INCIDENCIAS.toLowerCase()
+    ) {
       throw new ErrorDeIncidencia(
         'OPERACION_NO_ACTIVA',
         'La operación no está activa',

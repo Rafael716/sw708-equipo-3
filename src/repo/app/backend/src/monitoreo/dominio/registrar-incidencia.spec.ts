@@ -11,11 +11,21 @@ const COMANDO_VALIDO = {
   idUsuario: 'user-42',
 };
 
+/** Acta A12: operaciones que existen pero no admiten incidencias. */
+const OPERACIONES_NO_ACTIVAS: Record<string, string> = {
+  'op-pendiente': 'Pendiente',
+  'op-completada': 'Completada',
+  'op-cancelada': 'Cancelada',
+};
+
 function prepararMemoria(): IncidenciasEnMemoriaAdapter {
   const adaptador = new IncidenciasEnMemoriaAdapter();
   adaptador.sembrarTipo('tipo-1');
   adaptador.sembrarEstadoInicial('estado-abierta');
   adaptador.sembrarOperacionActiva('op-99');
+  for (const [id, estado] of Object.entries(OPERACIONES_NO_ACTIVAS)) {
+    adaptador.sembrarOperacion(id, estado);
+  }
   return adaptador;
 }
 
@@ -34,14 +44,18 @@ function prepararTypeormStub(): Incidencias {
     ),
   };
   const operacionRepo = {
-    findOne: jest.fn(async ({ where }: any) =>
-      where.id_operacion === 'op-99'
-        ? {
-            id_operacion: 'op-99',
-            estado_operacion: { nombre: 'En curso' },
-          }
-        : null,
-    ),
+    findOne: jest.fn(({ where }: { where: { id_operacion: string } }) => {
+      const estados: Record<string, string> = {
+        'op-99': 'En curso',
+        ...OPERACIONES_NO_ACTIVAS,
+      };
+      const nombre = estados[where.id_operacion];
+      return Promise.resolve(
+        nombre
+          ? { id_operacion: where.id_operacion, estado_operacion: { nombre } }
+          : null,
+      );
+    }),
   };
   const incidenciaRepo = {
     create: jest.fn((data: any) => data),
@@ -107,11 +121,23 @@ function suiteDominio(nombre: string, crearAdaptador: () => Incidencias) {
       ).rejects.toThrow('El grado de severidad debe ser un entero entre 1 y 5');
     });
 
-    it('rechaza operación que no está activa', async () => {
+    it('A6: rechaza operación inexistente con OPERACION_INEXISTENTE', async () => {
       await expect(
-        useCase.ejecutar({ ...COMANDO_VALIDO, idOperacion: 'op-inactiva' }),
-      ).rejects.toThrow('La operación no está activa');
+        useCase.ejecutar({ ...COMANDO_VALIDO, idOperacion: 'op-inexistente' }),
+      ).rejects.toMatchObject({ codigo: 'OPERACION_INEXISTENTE' });
     });
+
+    it.each(Object.entries(OPERACIONES_NO_ACTIVAS))(
+      'A12: rechaza operación %s (%s) con OPERACION_NO_ACTIVA',
+      async (idOperacion) => {
+        await expect(
+          useCase.ejecutar({ ...COMANDO_VALIDO, idOperacion }),
+        ).rejects.toMatchObject({
+          codigo: 'OPERACION_NO_ACTIVA',
+          message: 'La operación no está activa',
+        });
+      },
+    );
 
     it('rechaza si no hay estados configurados', async () => {
       const vacio = new IncidenciasEnMemoriaAdapter();

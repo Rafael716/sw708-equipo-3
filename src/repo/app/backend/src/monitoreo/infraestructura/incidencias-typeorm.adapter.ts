@@ -54,15 +54,16 @@ export class IncidenciasTypeormAdapter implements Incidencias {
     return { idEstadoIncidencia: estado.id_estado_incidencia };
   }
 
-  async operacionEstaActiva(idOperacion: string): Promise<boolean> {
+  async estadoDeOperacion(idOperacion: string): Promise<string | null> {
     const operacion = await this.operacionRepository.findOne({
       where: { id_operacion: idOperacion },
       relations: ['estado_operacion'],
     });
-    if (!operacion?.estado_operacion) {
-      return false;
+    if (!operacion) {
+      return null;
     }
-    return operacion.estado_operacion.nombre === 'En curso';
+    // Existe pero sin estado: no está «En curso», el dominio responde 409.
+    return operacion.estado_operacion?.nombre ?? '';
   }
 
   async siguienteCodigo(): Promise<string> {

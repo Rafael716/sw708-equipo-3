@@ -26,6 +26,13 @@ const ESTADO_ABIERTA = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
 const USUARIO = 'c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f';
 const OTRO_UUID = '11111111-2222-4333-8444-555555555555';
 
+/** Acta A12: operaciones que existen pero no están «En curso». */
+const OPERACIONES_NO_ACTIVAS: Record<string, string> = {
+  Pendiente: '22222222-3333-4444-8555-666666666661',
+  Completada: '22222222-3333-4444-8555-666666666662',
+  Cancelada: '22222222-3333-4444-8555-666666666663',
+};
+
 const PETICION_VALIDA = {
   id_tipo_incidencia: TIPO,
   descripcion: 'Sensor de temperatura del contenedor fuera de rango',
@@ -57,6 +64,9 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
     incidencias.sembrarTipo(TIPO);
     incidencias.sembrarEstadoInicial(ESTADO_ABIERTA);
     incidencias.sembrarOperacionActiva(OPERACION);
+    for (const [estado, id] of Object.entries(OPERACIONES_NO_ACTIVAS)) {
+      incidencias.sembrarOperacion(id, estado);
+    }
 
     const modulo = await Test.createTestingModule({
       controllers: [IncidenciasV1Controller],
@@ -294,18 +304,15 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
   });
 
   describe('409', () => {
-    it('operacion_no_activa: la operación no está En curso -> OPERACION_NO_ACTIVA', async () => {
-      // Hasta C5 el puerto no distingue inexistente de no activa: una operación no
-      // sembrada como activa responde 409. C5 siembra una operación «Completada».
-      esperarError(
-        await enviar({ ...PETICION_VALIDA, id_operacion: OTRO_UUID }),
-        409,
-        'OPERACION_NO_ACTIVA',
-      );
-    });
-
-    it.todo(
-      'A12: Pendiente, Completada y Cancelada -> OPERACION_NO_ACTIVA (C5)',
+    it.each(Object.entries(OPERACIONES_NO_ACTIVAS))(
+      'A12 operacion_no_activa: operación %s -> OPERACION_NO_ACTIVA',
+      async (_estado, idOperacion) => {
+        esperarError(
+          await enviar({ ...PETICION_VALIDA, id_operacion: idOperacion }),
+          409,
+          'OPERACION_NO_ACTIVA',
+        );
+      },
     );
   });
 
@@ -330,6 +337,12 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
       );
     });
 
-    it.todo('A6 operacion_inexistente -> OPERACION_INEXISTENTE (C5)');
+    it('A6 operacion_inexistente -> OPERACION_INEXISTENTE', async () => {
+      esperarError(
+        await enviar({ ...PETICION_VALIDA, id_operacion: OTRO_UUID }),
+        422,
+        'OPERACION_INEXISTENTE',
+      );
+    });
   });
 });

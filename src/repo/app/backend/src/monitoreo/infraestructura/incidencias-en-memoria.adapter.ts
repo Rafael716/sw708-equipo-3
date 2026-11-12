@@ -7,7 +7,7 @@ import {
 /** Segundo adaptador del puerto Incidencias: sin base de datos (pruebas). */
 export class IncidenciasEnMemoriaAdapter implements Incidencias {
   private readonly tipos = new Set<string>();
-  private readonly operacionesActivas = new Set<string>();
+  private readonly estadosDeOperacion = new Map<string, string>();
   private estadoInicialId: string | null = null;
   private secuencia = 0;
   private readonly guardadas: IncidenciaDominio[] = [];
@@ -22,7 +22,11 @@ export class IncidenciasEnMemoriaAdapter implements Incidencias {
   }
 
   sembrarOperacionActiva(idOperacion: string): void {
-    this.operacionesActivas.add(idOperacion);
+    this.sembrarOperacion(idOperacion, 'En curso');
+  }
+
+  sembrarOperacion(idOperacion: string, estado: string): void {
+    this.estadosDeOperacion.set(idOperacion, estado);
   }
 
   listar(): IncidenciaDominio[] {
@@ -44,8 +48,8 @@ export class IncidenciasEnMemoriaAdapter implements Incidencias {
     return { idEstadoIncidencia: this.estadoInicialId };
   }
 
-  async operacionEstaActiva(idOperacion: string): Promise<boolean> {
-    return this.operacionesActivas.has(idOperacion);
+  async estadoDeOperacion(idOperacion: string): Promise<string | null> {
+    return this.estadosDeOperacion.get(idOperacion) ?? null;
   }
 
   async siguienteCodigo(): Promise<string> {
