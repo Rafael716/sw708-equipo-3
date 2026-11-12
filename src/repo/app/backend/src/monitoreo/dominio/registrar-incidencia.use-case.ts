@@ -2,8 +2,10 @@ import {
   IncidenciaDominio,
   Incidencias,
   RegistrarIncidenciaComando,
-} from './incidencias.port';
-import { ErrorDeIncidencia } from './errores-incidencia';
+} from './incidencias.port';
+import { ErrorDeIncidencia } from './errores-incidencia';
+import { IncidenciaRegistrada } from './incidencia-registrada.evento';
+import { PublicadorEventos } from './publicador-eventos.port';
 
 /** Severidad máxima: dispara notificación a supervisores (E3). */
 export const SEVERIDAD_CRITICA = 5;
@@ -14,8 +16,16 @@ export const LARGO_MAXIMO_DESCRIPCION = 1000;
 /** Acta A12: único estado de operación que admite incidencias. */
 export const ESTADO_OPERACION_ADMITE_INCIDENCIAS = 'En curso';
 
+/** Publicador que no hace nada: útil en pruebas que solo miran el puerto de persistencia. */
+const PUBLICADOR_NULO: PublicadorEventos = {
+  publicar: async () => undefined,
+};
+
 export class RegistrarIncidenciaUseCase {
-  constructor(private readonly incidencias: Incidencias) {}
+  constructor(
+    private readonly incidencias: Incidencias,
+    private readonly publicador: PublicadorEventos = PUBLICADOR_NULO,
+  ) {}
 
   async ejecutar(comando: RegistrarIncidenciaComando): Promise<IncidenciaDominio> {
     if (!comando.idUsuario || comando.idUsuario.trim().length === 0) {
@@ -130,6 +140,23 @@ export class RegistrarIncidenciaUseCase {
       } catch {
         // Sin reintento en esta versión; el registro principal ya está hecho.
       }
+    }
+
+    // Paso 6: el caso de uso emite el evento; no conoce a los consumidores.
+    // Si el publicador o un consumidor fallan, el alta ya está hecha.
+    try {
+      await this.publicador.publicar(
+        new IncidenciaRegistrada(
+          guardada.idIncidencia,
+          guardada.codigo,
+          guardada.idOperacion,
+          guardada.gradoSeveridad,
+          guardada.idUsuario,
+          guardada.fechaHora,
+        ),
+      );
+    } catch {
+      // Mejor esfuerzo: el efecto del consumidor no forma parte de la transacción de alta.
     }
 
     return guardada;
