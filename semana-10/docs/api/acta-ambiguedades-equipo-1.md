@@ -23,12 +23,29 @@ Cada duda se resolvió en el contrato, no en un chat aparte. El contrato sube a 
 | 13 | El `201` no garantiza la notificación a supervisores y el cliente no puede saberlo. | Se confirma por diseño: la notificación es un proceso secundario de mejor esfuerzo y no bloquea el registro principal. La respuesta no informa su resultado. | `description` de la operación y del `201`. |
 | 14 | `AAMM` sale de la hora del servidor, la secuencia se reinicia cada mes y no pasa de 9999. | `AAMM` en **UTC**, igual que `fecha_hora`. La secuencia se reinicia cada mes y tiene **al menos** cuatro dígitos (después de `9999` sigue `10000`). | `description` y `pattern` de `Incidencia.codigo` (`^INC-\d{4}-\d{4,}$`). |
 
-## Pendiente para la implementación (paso 4)
+## Trazabilidad con la implementación (paso 4)
 
-Varias decisiones documentan comportamiento que el código actual todavía no tiene. Se implementan en el paso 4:
+El endpoint `POST /v1/incidencias` es el adaptador `src/repo/app/backend/src/monitoreo/http/incidencias-v1.controller.ts`, que implementa la interfaz generada desde este contrato (`http/generado/`). Las pruebas están en `http/incidencias-v1.controller.spec.ts`; cada una lleva en el nombre el punto del acta que verifica (`A4: …`, `A5: …`).
 
-- El controlador devuelve hoy todo error como un `400` genérico; falta el cuerpo `{codigo, mensaje, campo}` y los status `401`, `409` y `422` (puntos 6 y 7).
-- Distinguir operación inexistente (`422`) de operación no activa (`409`) (puntos 6 y 12).
-- Validar el límite de 1000 caracteres y los tipos incorrectos (puntos 5 y 8).
-- Responder `VALIDACION` ante cuerpo vacío, JSON inválido u otro `Content-Type` (punto 9).
-- Generar el `AAMM` del `codigo` en UTC (punto 14).
+Rutas relativas a `src/repo/app/backend/src/monitoreo/`.
+
+| # | Estado | Dónde se cumple | Prueba |
+|---|---|---|---|
+| 1 | Documentación | Sin cambio de código: no hay roles; el endpoint usa `JwtAuthGuard` | `token_ausente_o_invalido: sin token -> 401` |
+| 2 | Documentación | Sin cambio de código: los `GET` de catálogos ya existen | — |
+| 3 | ✅ Implementado | `http/incidencias-v1.controller.ts` (`aContrato`) | `A3: id_estado_incidencia es el de «Abierta»` |
+| 4 | ✅ Implementado | `dominio/registrar-incidencia.use-case.ts` (descripción y severidad) y `http/incidencias-v1.controller.ts` (`validarForma`, identificadores) | `descripcion_vacia (A4: ausente)`, `severidad_invalida (A4: ausente)`, `campo_ausente` |
+| 5 | ✅ Implementado | `http/incidencias-v1.controller.ts` (`validarForma`) y `dominio/registrar-incidencia.use-case.ts` | Pruebas `A5: …` (null, `"4"`, `4.5`, `descripcion` numérica) |
+| 6 | ⚠️ Parcial | Orden `401` → `400` → `422` → `409` y tipo antes que operación: implementado. **Pendiente:** `422 OPERACION_INEXISTENTE`; hoy una operación inexistente responde `409` | `A6: tipo y operación con problemas a la vez`; pendiente `A6 operacion_inexistente` |
+| 7 | ✅ Implementado | `dominio/errores-incidencia.ts` (`ErrorDeIncidencia` con `codigo` y `campo`) y el adaptador, que lo traduce al cuerpo `{codigo, mensaje, campo}` | Todas las pruebas `400` verifican `campo` |
+| 8 | ⚠️ Parcial | Recorte de espacios: implementado. **Pendiente:** el límite de 1000 caracteres | `A8: devuelve la descripción sin los espacios`; pendiente `A8 descripcion_muy_larga` |
+| 9 | ⚠️ Parcial | `Content-Type` distinto de JSON y cuerpo vacío: implementado en `validarForma`. **Pendiente:** el JSON inválido responde con el formato por defecto de Nest | `A9 cuerpo_no_json` (2 pruebas); pendiente `A9 JSON inválido` |
+| 10 | ✅ Implementado | Sin `Idempotency-Key`: cada llamada crea una incidencia | `A10: repetir la misma petición crea otra incidencia` |
+| 11 | Documentación | Sin cambio de código: `GET /monitoreo/incidencias/{id}` ya existe | — |
+| 12 | ⏳ Pendiente | Distinguir `Pendiente`, `Completada` y `Cancelada` requiere el mismo cambio del puerto que el punto 6 | Pendiente `A12` |
+| 13 | ⚠️ Parcial | Sin catálogo de notificaciones, `notificarSupervisores` no bloquea el alta (`infraestructura/incidencias-typeorm.adapter.ts`). **Pendiente:** si falla el guardado de la notificación, el error llega al endpoint y responde `500` aunque la incidencia ya se guardó; el contrato promete `201` | Pruebas de dominio de notificación (`registrar-incidencia.spec.ts`); pendiente la de falla |
+| 14 | ⏳ Pendiente de decisión del equipo | `siguienteCodigo()` del adaptador TypeORM todavía usa la hora local | — |
+
+También pendiente: el `401` responde con el formato por defecto de Nest y no con `{ codigo: NO_AUTENTICADO, mensaje }`.
+
+El `POST /monitoreo/incidencias` anterior se retiró: el alta de incidencias es solo `POST /v1/incidencias`.
