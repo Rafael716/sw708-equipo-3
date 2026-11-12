@@ -4,26 +4,30 @@ module.exports = {
     {
       name: 'dominio-monitoreo-no-depende-de-infra',
       comment:
-        'El dominio de monitoreo no debe depender de infraestructura, Nest ni TypeORM (rodaja Lab06).',
+        'El dominio de monitoreo no debe depender de infraestructura, Nest ni TypeORM (rodaja Lab06). ' +
+        'Lab10: tampoco del adaptador HTTP (http/, incluido el código generado del contrato) ni de las entidades TypeORM (entities/).',
       severity: 'error',
       from: {
         path: '^src/monitoreo/dominio',
         pathNot: '\\.spec\\.ts$',
       },
       to: {
-        path: '^src/monitoreo/(infraestructura|controllers|services)',
+        path: '^src/monitoreo/(infraestructura|controllers|services|http|entities)',
       },
     },
     {
       name: 'dominio-monitoreo-no-depende-de-framework',
-      comment: 'El dominio no importa NestJS ni TypeORM.',
+      comment:
+        'El dominio no importa el framework (Lab06: NestJS y TypeORM). ' +
+        'Lab10: tampoco Express, validación y transformación de NestJS, Passport, RxJS, ' +
+        'reflect-metadata ni el driver de PostgreSQL. Incluye los import type (tsPreCompilationDeps).',
       severity: 'error',
       from: {
         path: '^src/monitoreo/dominio',
         pathNot: '\\.spec\\.ts$',
       },
       to: {
-        path: 'node_modules/(@nestjs|typeorm)',
+        path: 'node_modules/(@nestjs|typeorm|express|@types/express|class-validator|class-transformer|passport|passport-jwt|rxjs|reflect-metadata|pg)(/|$)',
       },
     },
     {
