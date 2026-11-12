@@ -264,9 +264,17 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
       esperarError(await enviar({}), 400, 'VALIDACION');
     });
 
-    it.todo(
-      'A8 descripcion_muy_larga: más de 1000 caracteres tras recortar -> VALIDACION (C4)',
-    );
+    it('A8 descripcion_muy_larga: más de 1000 caracteres tras recortar -> VALIDACION', async () => {
+      esperarError(
+        await enviar({
+          ...PETICION_VALIDA,
+          descripcion: `  ${'x'.repeat(1001)}  `,
+        }),
+        400,
+        'VALIDACION',
+        'descripcion',
+      );
+    });
     it.todo(
       'A9 cuerpo_no_json: JSON inválido -> VALIDACION con el cuerpo del contrato (C8)',
     );

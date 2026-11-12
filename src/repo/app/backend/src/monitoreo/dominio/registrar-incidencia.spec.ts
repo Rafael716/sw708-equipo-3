@@ -150,3 +150,28 @@ describe('RegistrarIncidenciaUseCase — notificación a supervisores (E3)', () 
     expect(adaptador.listarNotificacionesSupervisores()).toHaveLength(0);
   });
 });
+
+describe('RegistrarIncidenciaUseCase — largo de la descripción (acta A8)', () => {
+  const ejecutar = (descripcion: string) =>
+    new RegistrarIncidenciaUseCase(prepararMemoria()).ejecutar({
+      ...COMANDO_VALIDO,
+      descripcion,
+    });
+
+  it('A8: acepta exactamente 1000 caracteres', async () => {
+    const creada = await ejecutar('x'.repeat(1000));
+    expect(creada.descripcion).toHaveLength(1000);
+  });
+
+  it('A8: rechaza 1001 caracteres con VALIDACION en descripcion', async () => {
+    await expect(ejecutar('x'.repeat(1001))).rejects.toMatchObject({
+      codigo: 'VALIDACION',
+      campo: 'descripcion',
+    });
+  });
+
+  it('A8: mide después de recortar: 1000 caracteres más espacios se aceptan y se guardan recortados', async () => {
+    const creada = await ejecutar(`   ${'x'.repeat(1000)}   `);
+    expect(creada.descripcion).toBe('x'.repeat(1000));
+  });
+});

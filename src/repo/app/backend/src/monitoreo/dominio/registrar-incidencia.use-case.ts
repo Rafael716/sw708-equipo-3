@@ -8,6 +8,9 @@ import { ErrorDeIncidencia } from './errores-incidencia';
 /** Severidad máxima: dispara notificación a supervisores (E3). */
 export const SEVERIDAD_CRITICA = 5;
 
+/** Acta A8: largo máximo de la descripción, medido después de recortar espacios. */
+export const LARGO_MAXIMO_DESCRIPCION = 1000;
+
 export class RegistrarIncidenciaUseCase {
   constructor(private readonly incidencias: Incidencias) {}
 
@@ -21,6 +24,15 @@ export class RegistrarIncidenciaUseCase {
       throw new ErrorDeIncidencia(
         'DESCRIPCION_VACIA',
         'La descripción no puede estar vacía',
+        'descripcion',
+      );
+    }
+
+    // Acta A8: el límite se mide sobre el texto ya recortado.
+    if (descripcion.length > LARGO_MAXIMO_DESCRIPCION) {
+      throw new ErrorDeIncidencia(
+        'VALIDACION',
+        `La descripción no puede superar ${LARGO_MAXIMO_DESCRIPCION} caracteres`,
         'descripcion',
       );
     }
