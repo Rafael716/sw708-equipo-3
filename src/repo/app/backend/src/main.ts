@@ -1,6 +1,7 @@
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { ErroresContratoFilter } from './monitoreo/http/errores-contrato.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,6 +24,12 @@ async function bootstrap() {
       transform: true,
       forbidNonWhitelisted: true,
     }),
+  );
+
+  // Cuerpo de error del contrato en POST /v1/incidencias para lo que Nest rechaza
+  // antes del controlador: JSON inválido y falta de token (semana-10/docs/api).
+  app.useGlobalFilters(
+    new ErroresContratoFilter(app.get(HttpAdapterHost).httpAdapter),
   );
   
   const port = process.env.PORT || 3001;

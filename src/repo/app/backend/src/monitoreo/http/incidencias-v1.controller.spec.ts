@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ValidationPipe,
 } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types';
@@ -11,6 +12,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RegistrarIncidenciaUseCase } from '../dominio/registrar-incidencia.use-case';
 import { IncidenciasEnMemoriaAdapter } from '../infraestructura/incidencias-en-memoria.adapter';
 import { IncidenciasV1Controller } from './incidencias-v1.controller';
+import { ErroresContratoFilter } from './errores-contrato.filter';
 import { ModelError } from './generado/models';
 
 /**
@@ -89,6 +91,9 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
         transform: true,
         forbidNonWhitelisted: true,
       }),
+    );
+    app.useGlobalFilters(
+      new ErroresContratoFilter(app.get(HttpAdapterHost).httpAdapter),
     );
     await app.init();
   });
@@ -285,9 +290,14 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
         'descripcion',
       );
     });
-    it.todo(
-      'A9 cuerpo_no_json: JSON inválido -> VALIDACION con el cuerpo del contrato (C8)',
-    );
+    it('A9 cuerpo_no_json: JSON inválido -> VALIDACION', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/v1/incidencias')
+        .set('Authorization', 'Bearer token-valido')
+        .set('Content-Type', 'application/json')
+        .send('{"descripcion": ');
+      esperarError(res, 400, 'VALIDACION');
+    });
   });
 
   describe('401', () => {
@@ -295,12 +305,19 @@ describe('POST /v1/incidencias (adaptador contra el contrato 1.1.0)', () => {
       const res = await request(app.getHttpServer())
         .post('/v1/incidencias')
         .send(PETICION_VALIDA);
-      expect(res.status).toBe(401);
+      esperarError(res, 401, 'NO_AUTENTICADO');
     });
+  });
 
-    it.todo(
-      'token_ausente_o_invalido: cuerpo { codigo: NO_AUTENTICADO, mensaje } (C8)',
-    );
+  describe('fuera del contrato', () => {
+    it('las demás rutas conservan el formato de error de Nest', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/monitoreo/otra-ruta')
+        .send({});
+      expect(res.status).toBe(404);
+      expect(res.body).toMatchObject({ statusCode: 404 });
+      expect(res.body).not.toHaveProperty('codigo');
+    });
   });
 
   describe('409', () => {
