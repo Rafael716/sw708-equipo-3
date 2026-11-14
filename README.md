@@ -43,6 +43,7 @@ Documentación útil:
 
 - [Informe / arquitectura](./docs/arquitectura.md)
 - [Reglas de negocio](./docs/reglas-de-negocio.md)
+- [Resiliencia: circuit breaker y timeout](./docs/resiliencia.md)
 - [Guía Git (PRs y develop)](./docs/guia-git.md)
 - [README de la app](./src/repo/app/README.md)
 - [Deploy](./src/repo/DEPLOY.md)
