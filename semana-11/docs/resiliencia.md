@@ -198,7 +198,7 @@ Los casos 1 y 2 apagaron la base de datos y el backend, pero el patrón protege 
 
 ### Intento 1: resultado sin el patrón (paso 04)
 
-Ejecución (18-nov-2026): el backend se reconstruyó temporalmente con el código de `main` (`git checkout origin/main -- src/repo/app/backend/src`), se comprobó que no tenía el patrón (`/monitoreo/vm/estado-circuitos` → `404`) y que con VictoriaMetrics encendido la consulta respondía `200` en 0.015 s. Luego se apagó VictoriaMetrics y se lanzaron 8 consultas seguidas.
+Ejecución (18-nov-2026): el backend se reconstruyó temporalmente con el código de `main` (`git checkout origin/main -- src/repo/app/backend/src`), se comprobó que no tenía el patrón (`/monitoreo/vm/estado-circuitos` → `404`). Luego se apagó VictoriaMetrics y se lanzaron 8 consultas seguidas.
 
 ```bash
 docker compose stop victoriametrics
@@ -209,11 +209,75 @@ for i in $(seq 8); do curl -s -w "  -> HTTP %{http_code} en %{time_total}s\n" ht
 
 | Pregunta | Qué esperábamos | Qué pasó de verdad | ¿Acertamos? |
 |---|---|---|---|
-| ¿Cuánto tarda? | 3–4 s por petición, sin colgarse | **5.0 s por petición** (5.006–5.010 s en las 8), sin colgarse | **En parte.** Hay límite, pero es más alto: es el timeout del resolvedor DNS de Docker (`getaddrinfo EAI_AGAIN victoriametrics`), 5 s por intento. Con `db` (caso 1) fueron 3.68 s porque el driver de Postgres falla por otro camino. Nadie en el código decidió esos 5 s. |
+| ¿Cuánto tarda? | 3–4 s por petición, sin colgarse | **5.0 s por petición** (5.008–5.019 s en las 8), sin colgarse | **En parte.** Hay límite, pero es más alto: el log muestra `TypeError: fetch failed`: el `fetch` no logra resolver el nombre `victoriametrics` y el límite lo pone la resolución DNS (en `docker compose logs app` la causa aparece como `getaddrinfo EAI_AGAIN victoriametrics`). Con `db` (caso 1) fueron 3.68 s porque el driver de Postgres falla por otro camino. Nadie en el código decidió esos 5 s. |
 | ¿Qué recibe el usuario? | `500` sin explicación | **`500`** `{"statusCode":500,"message":"Internal server error"}` en las 8 | **Sí.** En el log: `TypeError: fetch failed` sin capturar. La gráfica no se dibuja y el usuario no sabe por qué. |
-| ¿Aprende de los fallos? | No: la 8.ª tarda igual que la 1.ª | La 1.ª tardó 5.006 s y la 8.ª 5.010 s | **Sí.** 8 peticiones = 40 s de espera acumulada contra una dependencia que ya sabíamos caída. |
-| ¿El resto sigue? | Sí, `/auth/roles` 200 al instante y sin reinicio | **`/auth/roles` → `200` en 0.009 s**; `app` siguió `Up` | **Sí.** La falla queda en las rutas que usan VictoriaMetrics: el servicio **se degrada**, no se cae entero. |
+| ¿Aprende de los fallos? | No: la 8.ª tarda igual que la 1.ª | La 1.ª tardó 5.019 s y la 8.ª 5.009 s | **Sí.** 8 peticiones = 40 s de espera acumulada contra una dependencia que ya sabíamos caída. |
+| ¿El resto sigue? | Sí, `/auth/roles` 200 al instante y sin reinicio | **`/auth/roles` → `200` en 0.0096 s**; `app` siguió `Up` | **Sí.** La falla queda en las rutas que usan VictoriaMetrics: el servicio **se degrada**, no se cae entero. |
 
 **Conclusión del intento 1:** el sistema no se cae, pero cada petición que toca VictoriaMetrics pierde 5 s y termina en un 500 genérico, siempre igual, porque nada recuerda que la dependencia está caída. Con varios usuarios abriendo la página, esas esperas se acumulan.
 
 Tras la prueba se restauró el backend de la rama (`git checkout HEAD -- src/repo/app/backend`).
+
+### Intento 2: resultado con el patrón (paso 06)
+
+Ejecución (18-nov-2026): backend de esta rama (timeout 2 s + circuit breaker, valores de la §2). Se esperaron 11 s para vaciar la ventana de estadísticas y se apagó VictoriaMetrics, **la misma falla del intento 1**.
+
+#### a) Un usuario, 8 consultas seguidas (igual que en el intento 1)
+
+![Paso 06: con patrón, 8 consultas seguidas](../assets/paso6-vm-con-patron-secuencial.png)
+
+- Las 8 respondieron **`200`** con `points: []`, `degradado: true`, `motivo: "tiempo_agotado"`, **en 2.00 s cada una** (2.001–2.006 s; antes: `500` en 5.0 s).
+- **El circuito no se abrió**: `estado-circuitos` muestra la consulta `cerrado` con `"llamadas":4, "fallos":5, "timeouts":5`.
+- Justo después, `/auth/roles` tardó **3.96 s** (antes: 0.0096 s). Ver hallazgo 2.
+
+#### b) Seis usuarios a la vez
+
+![Paso 06: con patrón, 6 usuarios a la vez](../assets/paso6-vm-con-patron-concurrente.png)
+
+- Las 6 consultas simultáneas respondieron `200` degradado en 2.0 s (2.003–2.007 s), y el circuito **se abrió** (`Circuito ABIERTO (4/6 fallos en la ventana)`).
+- Las 8 consultas siguientes respondieron `200` con `motivo: "circuito_abierto"` y `reintentarEnMs: 15000` **en ~0.001 s** (0.0009–0.0012 s): ya ni se llama a VictoriaMetrics.
+- Mientras las 6 consultas estaban en curso, `/auth/roles` tardó **14.7 s**. Ver hallazgo 2.
+
+#### c) Recuperación
+
+![Paso 06: recuperación del circuito](../assets/paso6-vm-recuperacion.png)
+
+Según el log (hora UTC), el circuito se abrió a las 16:47:06 y pasó a **media apertura** a las 16:47:21, exactamente 15 s después (`estado-circuitos` → `medio_abierto`). Luego se encendió VictoriaMetrics y, pasados 16 s, la primera consulta fue la llamada de prueba: respondió `200` con `degradado: false` en 0.012 s y el circuito **se cerró** (16:47:58; métricas `"llamadas":1, "exitos":1`).
+
+#### Hipótesis vs. resultado del intento 2
+
+| Pregunta | Qué esperábamos | Qué pasó de verdad | ¿Acertamos? |
+|---|---|---|---|
+| ¿Cuánto tarda? | ≤ 2 s al principio; milisegundos al abrirse el circuito hacia la 5.ª petición | **2.0 s** en las 8 peticiones de un usuario; **0.001 s** solo cuando el circuito se abrió con 6 usuarios a la vez | **En parte.** El timeout funciona; el circuito no se abre con un solo usuario (hallazgo 1). |
+| ¿Qué recibe el usuario? | `200` con `degradado: true` desde la 1.ª petición | **`200` con `degradado: true`** en todas, con el `motivo` correcto (`tiempo_agotado` → `circuito_abierto`) | **Sí.** |
+| ¿Aprende de los fallos? | Sí, el circuito se abre | Solo con varios usuarios a la vez | **En parte** (hallazgo 1). |
+| ¿Se recupera? | Media apertura a los 15 s y cierre si responde | Media apertura a los 15 s exactos, cierre con la primera llamada | **Sí.** |
+
+#### Hallazgo 1: con un solo usuario el circuito no llega al mínimo de llamadas
+
+opossum solo evalúa el porcentaje de errores si en la ventana hay al menos `minimoLlamadas` (5). Pero cada llamada fallida tarda el timeout completo (2 s), así que un usuario que consulta seguido mete como máximo **5 llamadas en 10 s**, y cuando se evalúa el fallo, la más antigua ya salió de la ventana (que avanza en tramos de 1 s): quedan 4. **5 llamadas × 2 s = 10 s = la ventana entera.** La captura de la prueba a lo confirma: con 5 fallos registrados, la ventana solo cuenta `"llamadas":4`. Los tres números de la §2 tienen sentido uno por uno, pero juntos dejan al circuito sin abrir para el caso de un solo usuario. Con carga real (varios usuarios) sí se abre, como mostró la prueba b.
+
+Si el equipo quiere que también se abra con un solo usuario, hay que cumplir `minimoLlamadas × timeout < ventana`, por ejemplo con una ventana de 30 s o un mínimo de 3 llamadas. Se puede ajustar sin recompilar con `VICTORIA_METRICS_CIRCUIT_WINDOW_MS` o `VICTORIA_METRICS_CIRCUIT_MIN_CALLS`. **Pendiente de decisión del equipo.**
+
+#### Hallazgo 2: el timeout libera al usuario, pero no el recurso
+
+Mientras las 6 consultas a VictoriaMetrics estaban en curso, una ruta **sin** base de datos (`/monitoreo/vm/estado-circuitos`) respondió en 0.001 s, pero `/auth/roles` (**con** base de datos) tardó 14.7 s (la captura de la prueba b muestra 14.72 s; la comparación con la ruta sin base de datos se midió aparte, en terminal, sin captura). El proceso no estaba bloqueado: lo que se agotó fueron los **hilos de libuv** (4 por defecto en Node). Así lo explicamos:
+
+1. Con VictoriaMetrics apagado, resolver el nombre `victoriametrics` (`getaddrinfo`) tarda unos 5 s y ocupa uno de esos 4 hilos (es lo que vimos en el intento 1).
+2. El `AbortSignal` de 2 s le responde al usuario a tiempo, pero **no puede cancelar** esa búsqueda de DNS: el hilo sigue ocupado hasta que termina.
+3. Con 6 consultas, los 4 hilos quedan ocupados. Cuando `/auth/roles` necesita abrir una conexión nueva a Postgres (el pool cierra las conexiones inactivas tras unos segundos), también tiene que resolver `db`, y espera en la cola.
+
+Es el caso que plantea el laboratorio: *"¿una dependencia lenta agota los hilos?"*. Sí, y el timeout por sí solo no lo evita. Lo que lo limita es el circuito: con el circuito abierto ya no se lanzan búsquedas nuevas, y por eso `/auth/roles` volvió a responder al instante una vez abierto el circuito. Sin patrón no pasaba porque cada petición esperaba sus 5 s completos: no había búsquedas abandonadas acumulándose.
+
+Mitigaciones posibles, **no aplicadas** (pendientes de decisión del equipo): abrir el circuito antes (hallazgo 1), aumentar `UV_THREADPOOL_SIZE` o configurar el pool de Postgres para mantener conexiones abiertas.
+
+---
+
+## Bitácora del experimento: la misma falla, antes y después del patrón
+
+| | Antes del patrón (paso 04) | Después del patrón (paso 06) |
+|---|---|---|
+| **Qué se apagó** | VictoriaMetrics (`docker compose stop victoriametrics`); frontend, backend y BD arriba | Lo mismo: VictoriaMetrics, con el mismo comando |
+| **Qué esperábamos** | `500` en 3–4 s por petición, sin aprender de los fallos; el resto del sistema sigue | `200` degradado; ≤ 2 s al principio y milisegundos al abrirse el circuito hacia la 5.ª petición; recuperación a los 15 s |
+| **Qué pasó de verdad** | `500` genérico en **5.0 s** en las 8 peticiones (timeout de DNS, no nuestro); `/auth/roles` en 0.009 s; el backend siguió arriba | `200` con `degradado: true` en **2.0 s**. Con 1 usuario el circuito no se abrió (hallazgo 1); con 6 a la vez se abrió y respondió en **0.001 s**. Se recuperó solo a los 15 s. `/auth/roles` llegó a tardar 14.7 s mientras había consultas en curso (hallazgo 2) |
+| **Qué cambió con el patrón** | — | El usuario recibe una **respuesta definida** ("sin datos", con motivo y cuándo reintentar) en vez de un 500; la espera baja de 5 s (decidida por nadie) a 2 s (decidida por el equipo); con el circuito abierto, la respuesta es instantánea y deja de presionar a la dependencia caída. Lo que no resolvió: el circuito necesita carga para abrirse, y el timeout no libera los hilos de DNS |
