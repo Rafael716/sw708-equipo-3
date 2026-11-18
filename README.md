@@ -73,6 +73,11 @@ podman compose up --build
 | Frontend | http://localhost:3000 |
 | Backend | http://localhost:3001 |
 | PostgreSQL | red interna `db:5432` |
+| VictoriaMetrics | http://localhost:8428 |
+
+Evidencia: el sistema respondiendo tras un clon limpio, sin `.env` y con volúmenes vacíos (`db` y `victoriametrics` en *healthy*; `GET /auth/roles` → `200`).
+
+![Sistema respondiendo tras clon limpio](./semana-11/assets/captura-clon-limpio.png)
 
 ### Datos de prueba (opcional)
 
