@@ -137,6 +137,33 @@ Valores por defecto en `VALORES_RESILIENCIA_VM` (`victoriametrics.service.ts`). 
 | Tiempo abierto antes de probar | **15 s** | `VICTORIA_METRICS_CIRCUIT_RESET_MS` | Un reinicio de VictoriaMetrics en `docker compose` tarda del orden de 5–10 s en volver a aceptar escrituras. 15 s cubre ese reinicio con margen y evita sondas mientras el servicio aún está levantando. Un valor de 5 s reabriría el circuito durante el arranque; 30 s o más dejaría el panel degradado demasiado tiempo por un hipo pasajero. Pasado ese tiempo el circuito pasa a **media apertura** y deja pasar una sola llamada de prueba. |
 | Respuesta durante la espera | ver §3 | — | Se definió una respuesta distinta para lectura y escritura, porque no es lo mismo "no hay datos que mostrar" que "no se guardó lo que pediste". |
 
+### 3. Respuesta con el circuito abierto
+
+Qué responde el sistema mientras VictoriaMetrics no está es una **decisión de arquitectura**, no un detalle del código. Había tres opciones: un error claro, un dato viejo de caché o la función sin esa parte. No se eligió la misma para todo, porque una lectura y una escritura no fallan igual:
+
+| Operación | Opción elegida | Respuesta HTTP | Por qué |
+|---|---|---|---|
+| **Lectura**: `GET /monitoreo/vm/temperatura/:id` | **La función sin esa parte** | `200` con `points: []`, `degradado: true`, `motivo` y, si el circuito está abierto, `reintentarEnMs: 15000` | La gráfica de temperatura es accesoria: el resto del panel de monitoreo sigue siendo útil sin ella. Un 5xx haría que la página trate todo como error; `degradado: true` le permite mostrar "sin datos por ahora" y seguir. |
+| **Escritura**: `POST /monitoreo/vm/sync-lecturas/sensor/:id` | **Un error claro** | `503` con `codigo: DEPENDENCIA_NO_DISPONIBLE`, `dependencia`, `motivo`, `mensaje` y `reintentarEnMs: 15000` | Una escritura no se puede fingir: si respondiera 200, el operador creería que exportó lecturas que nunca llegaron. El 503 dice qué falló y cuándo tiene sentido volver a intentar (cuando el circuito vuelve a probar). |
+
+**Por qué no un dato viejo de caché.** Para mostrar la última serie conocida habría que guardarla en algún lado. En memoria del proceso, rompe la escalabilidad horizontal: cada copia del backend tendría un caché distinto (es el "estado escondido" de la teoría). Fuera del proceso, agrega otra dependencia que también puede caer. Para una gráfica de demo no vale ese costo, y una temperatura vieja mostrada como actual puede engañar más que un "sin datos".
+
+**El `motivo` dice qué pasó.** El campo se llena en las dos respuestas:
+
+| `motivo` | Cuándo |
+|---|---|
+| `tiempo_agotado` | VictoriaMetrics no respondió en 2 s (timeout de opossum o `AbortSignal`) |
+| `error_dependencia` | Falló la conexión o VictoriaMetrics devolvió 5xx (por ejemplo, el nombre no resuelve porque el contenedor está apagado) |
+| `circuito_abierto` | Ni se llamó a VictoriaMetrics: el circuito está abierto y responde al instante |
+
+Esta respuesta se usa **desde el primer fallo**, no solo con el circuito abierto: opossum usa el respaldo ante cualquier error o timeout. Lo que cambia al abrirse el circuito es el **tiempo**: deja de esperar los 2 s y responde en milisegundos.
+
+**Qué no abre el circuito.** Un `4xx` de VictoriaMetrics (por ejemplo, una consulta PromQL mal armada por nosotros) es un defecto de la petición, no una caída de la dependencia: se ignora en el conteo (`errorFilter`) para no cortar un servicio sano por un bug propio.
+
+**Por qué no hay reintentos.** La teoría propone tres defensas: timeout, reintento y circuit breaker. Aquí solo se usan las dos que exige el laboratorio. Reintentar la **escritura** podría duplicar lecturas en VictoriaMetrics, porque la exportación no tiene clave de idempotencia. En la **lectura**, reintentar contra una dependencia caída solo multiplica la espera: el usuario ya puede volver a pedir la gráfica, y el campo `reintentarEnMs` le dice cuándo.
+
+**Por qué VictoriaMetrics no está en `depends_on`.** En `compose.yaml`, `app` solo espera a `db`. Si VictoriaMetrics fuera requisito de arranque, una caída suya impediría levantar el backend entero, y es justo lo contrario de degradar. La app arranca sin ella y el circuito se encarga de la falla.
+
 ---
 
 ## Experimento con VictoriaMetrics: la misma falla, antes y después del patrón
