@@ -136,3 +136,35 @@ Valores por defecto en `VALORES_RESILIENCIA_VM` (`victoriametrics.service.ts`). 
 | Ventana de estadísticas | **10 s** | `VICTORIA_METRICS_CIRCUIT_WINDOW_MS` | Los fallos de hace un minuto no describen el estado actual de la dependencia. Con 10 s la decisión usa solo el presente inmediato y encaja con la espera de 15 s: al reabrir, la ventana ya está limpia. Los 10 buckets internos dan granularidad de 1 s. |
 | Tiempo abierto antes de probar | **15 s** | `VICTORIA_METRICS_CIRCUIT_RESET_MS` | Un reinicio de VictoriaMetrics en `docker compose` tarda del orden de 5–10 s en volver a aceptar escrituras. 15 s cubre ese reinicio con margen y evita sondas mientras el servicio aún está levantando. Un valor de 5 s reabriría el circuito durante el arranque; 30 s o más dejaría el panel degradado demasiado tiempo por un hipo pasajero. Pasado ese tiempo el circuito pasa a **media apertura** y deja pasar una sola llamada de prueba. |
 | Respuesta durante la espera | ver §3 | — | Se definió una respuesta distinta para lectura y escritura, porque no es lo mismo "no hay datos que mostrar" que "no se guardó lo que pediste". |
+
+---
+
+## Experimento con VictoriaMetrics: la misma falla, antes y después del patrón
+
+Los casos 1 y 2 apagaron la base de datos y el backend, pero el patrón protege a **VictoriaMetrics**. Para comparar *la misma falla* antes y después, este experimento apaga VictoriaMetrics en los dos intentos. Es el único servicio externo que el backend consume por HTTP (el lab acepta "un servicio externo" como dependencia a hacer fallar).
+
+- **Qué se apaga:** `docker compose stop victoriametrics` (el frontend, el backend y la BD siguen arriba).
+- **Qué se pide:** `GET /monitoreo/vm/temperatura/C1`, la consulta que usa la página `/monitoreo/vm-demo` para dibujar la temperatura de un contenedor. Se lanza 8 veces seguidas y se anota código HTTP y tiempo de cada una.
+- **Control:** `GET /auth/roles` (solo usa la BD) para ver si el resto del sistema sigue atendiendo.
+- **Antes del patrón:** backend de `main` (`fetch` sin timeout ni circuit breaker).
+- **Después del patrón:** backend de esta rama (timeout de 2 s + circuit breaker de opossum, valores de la §2).
+
+### Hipótesis (escrita antes de apagar VictoriaMetrics)
+
+**Intento 1, sin el patrón (paso 04):**
+
+| Pregunta | Qué esperamos | Por qué |
+|---|---|---|
+| ¿Cuánto tarda? | Unos **3–4 s por petición**, no se cuelga para siempre | Al detener el contenedor, el nombre `victoriametrics` deja de existir en la red de Docker. El `fetch` falla al resolverlo, como pasó con `db` en el caso 1 (3.68 s). No hay timeout propio: el límite lo pone la resolución DNS. |
+| ¿Qué recibe el usuario? | **`500 Internal Server Error`**, sin explicación | El error del `fetch` no se captura; Nest lo convierte en un 500 genérico. La gráfica no se dibuja. |
+| ¿Aprende de los fallos? | **No**: la petición 8 tarda lo mismo que la 1 | Nada recuerda que la dependencia está caída, así que cada petición vuelve a esperar. Con muchos usuarios, esas esperas se acumulan. |
+| ¿El resto sigue? | **Sí**: `/auth/roles` responde 200 al instante y el backend no se reinicia | VictoriaMetrics no es requisito de arranque (no está en `depends_on`) y la falla solo afecta a las rutas que la usan. |
+
+**Intento 2, con el patrón (paso 06):**
+
+| Pregunta | Qué esperamos | Por qué |
+|---|---|---|
+| ¿Cuánto tarda? | Las primeras peticiones, **≤ 2 s**; desde que se abre el circuito, **milisegundos** | El timeout corta a los 2 s (si el DNS falla antes, falla antes). Con mínimo 5 llamadas y 50 % de error dentro de 10 s, el circuito se abre hacia la **5.ª petición** y las siguientes ni siquiera llaman a VictoriaMetrics. |
+| ¿Qué recibe el usuario? | **`200`** con `points: []` y `degradado: true` **desde la primera petición**; el `motivo` cambia de fallo de la dependencia a `circuito_abierto` cuando el circuito se abre | El respaldo de opossum se usa ante cualquier fallo o timeout, no solo con el circuito abierto. Es la respuesta definida para la lectura con la dependencia caída: la página muestra "sin datos" en vez de un error. |
+| ¿Aprende de los fallos? | **Sí**: `estado-circuitos` muestra `consulta: abierto` | Esa es la diferencia que buscamos con el patrón. |
+| ¿Se recupera? | Al encender VictoriaMetrics, tras **15 s** el circuito prueba una llamada (media apertura) y, si responde, se cierra | Es el tiempo de espera elegido en la §2. |
