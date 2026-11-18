@@ -168,3 +168,25 @@ Los casos 1 y 2 apagaron la base de datos y el backend, pero el patrón protege 
 | ¿Qué recibe el usuario? | **`200`** con `points: []` y `degradado: true` **desde la primera petición**; el `motivo` cambia de fallo de la dependencia a `circuito_abierto` cuando el circuito se abre | El respaldo de opossum se usa ante cualquier fallo o timeout, no solo con el circuito abierto. Es la respuesta definida para la lectura con la dependencia caída: la página muestra "sin datos" en vez de un error. |
 | ¿Aprende de los fallos? | **Sí**: `estado-circuitos` muestra `consulta: abierto` | Esa es la diferencia que buscamos con el patrón. |
 | ¿Se recupera? | Al encender VictoriaMetrics, tras **15 s** el circuito prueba una llamada (media apertura) y, si responde, se cierra | Es el tiempo de espera elegido en la §2. |
+
+### Intento 1: resultado sin el patrón (paso 04)
+
+Ejecución (18-nov-2026): el backend se reconstruyó temporalmente con el código de `main` (`git checkout origin/main -- src/repo/app/backend/src`), se comprobó que no tenía el patrón (`/monitoreo/vm/estado-circuitos` → `404`) y que con VictoriaMetrics encendido la consulta respondía `200` en 0.015 s. Luego se apagó VictoriaMetrics y se lanzaron 8 consultas seguidas.
+
+```bash
+docker compose stop victoriametrics
+for i in $(seq 8); do curl -s -w "  -> HTTP %{http_code} en %{time_total}s\n" http://localhost:3001/monitoreo/vm/temperatura/C1; done
+```
+
+![Paso 04: VictoriaMetrics apagado, backend sin patrón](../assets/paso4-vm-sin-patron.png)
+
+| Pregunta | Qué esperábamos | Qué pasó de verdad | ¿Acertamos? |
+|---|---|---|---|
+| ¿Cuánto tarda? | 3–4 s por petición, sin colgarse | **5.0 s por petición** (5.006–5.010 s en las 8), sin colgarse | **En parte.** Hay límite, pero es más alto: es el timeout del resolvedor DNS de Docker (`getaddrinfo EAI_AGAIN victoriametrics`), 5 s por intento. Con `db` (caso 1) fueron 3.68 s porque el driver de Postgres falla por otro camino. Nadie en el código decidió esos 5 s. |
+| ¿Qué recibe el usuario? | `500` sin explicación | **`500`** `{"statusCode":500,"message":"Internal server error"}` en las 8 | **Sí.** En el log: `TypeError: fetch failed` sin capturar. La gráfica no se dibuja y el usuario no sabe por qué. |
+| ¿Aprende de los fallos? | No: la 8.ª tarda igual que la 1.ª | La 1.ª tardó 5.006 s y la 8.ª 5.010 s | **Sí.** 8 peticiones = 40 s de espera acumulada contra una dependencia que ya sabíamos caída. |
+| ¿El resto sigue? | Sí, `/auth/roles` 200 al instante y sin reinicio | **`/auth/roles` → `200` en 0.009 s**; `app` siguió `Up` | **Sí.** La falla queda en las rutas que usan VictoriaMetrics: el servicio **se degrada**, no se cae entero. |
+
+**Conclusión del intento 1:** el sistema no se cae, pero cada petición que toca VictoriaMetrics pierde 5 s y termina en un 500 genérico, siempre igual, porque nada recuerda que la dependencia está caída. Con varios usuarios abriendo la página, esas esperas se acumulan.
+
+Tras la prueba se restauró el backend de la rama (`git checkout HEAD -- src/repo/app/backend`).
