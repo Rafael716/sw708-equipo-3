@@ -11,7 +11,6 @@ COPY src/repo/app/pnpm-lock.yaml src/repo/app/pnpm-workspace.yaml src/repo/app/p
 COPY src/repo/app/backend/package.json ./backend/
 RUN pnpm install --frozen-lockfile --filter backend
 COPY src/repo/app/backend ./backend
-COPY src/repo/app/package.json src/repo/app/pnpm-workspace.yaml src/repo/app/pnpm-lock.yaml ./
 RUN pnpm --filter backend build
 RUN pnpm --filter backend deploy --prod /out && cp -r backend/dist /out/dist
 
