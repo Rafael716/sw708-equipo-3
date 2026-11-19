@@ -1,0 +1,87 @@
+name: sw708
+
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-bd252}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/repo/scripts/ddl/tablas/consolidado.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bd252}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Dependencia externa protegida con timeout + circuit breaker (ver semana-11/docs/resiliencia.md).
+  # Para inyectar la falla: docker compose stop victoriametrics
+  victoriametrics:
+    image: docker.io/victoriametrics/victoria-metrics:v1.106.1
+    restart: unless-stopped
+    command:
+      - "-storageDataPath=/storage"
+      - "-retentionPeriod=1y"
+      - "-httpListenAddr=:8428"
+    volumes:
+      - vmdata:/storage
+    ports:
+      - "8428:8428"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8428/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Solo la base de datos es requisito de arranque. VictoriaMetrics no se pone
+    # en depends_on a propósito: si cae, la app debe seguir viva y degradarse
+    # (el circuito responde), no negarse a arrancar.
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${POSTGRES_USER:-postgres}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DATABASE_NAME: ${POSTGRES_DB:-bd252}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      VICTORIA_METRICS_URL: ${VICTORIA_METRICS_URL:-http://victoriametrics:8428}
+      VICTORIA_METRICS_TIMEOUT_MS: ${VICTORIA_METRICS_TIMEOUT_MS:-2000}
+      VICTORIA_METRICS_CIRCUIT_ERROR_PERCENTAGE: ${VICTORIA_METRICS_CIRCUIT_ERROR_PERCENTAGE:-50}
+      VICTORIA_METRICS_CIRCUIT_MIN_CALLS: ${VICTORIA_METRICS_CIRCUIT_MIN_CALLS:-5}
+      VICTORIA_METRICS_CIRCUIT_WINDOW_MS: ${VICTORIA_METRICS_CIRCUIT_WINDOW_MS:-10000}
+      VICTORIA_METRICS_CIRCUIT_RESET_MS: ${VICTORIA_METRICS_CIRCUIT_RESET_MS:-15000}
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: ./src/repo/app
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  vmdata:

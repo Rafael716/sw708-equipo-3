@@ -43,6 +43,8 @@ Documentación útil:
 
 - [Informe / arquitectura](./docs/arquitectura.md)
 - [Reglas de negocio](./docs/reglas-de-negocio.md)
+- [Resiliencia: circuit breaker y timeout](./semana-11/docs/resiliencia.md)
+- [Bitácora de IA (semana 11)](./semana-11/docs/bitacora-ia.md)
 - [Guía Git (PRs y develop)](./docs/guia-git.md)
 - [README de la app](./src/repo/app/README.md)
 - [Deploy](./src/repo/DEPLOY.md)
@@ -51,21 +53,20 @@ Documentación útil:
 
 ## Cómo ejecutarlo
 
-Requisitos: **Node.js ≥ 20.9**, **pnpm ≥ 9**, y (recomendado) **Docker**.
+Requisitos: **Docker** (o Podman) con Compose.
 
-### 1. Clonar
+### Levantar desde un clon limpio (un solo comando)
+
+No hace falta crear un `.env`: Compose trae valores de desarrollo por defecto.
 
 ```bash
-git clone https://github.com/Rafael716/sw708-equipo-3.git
-cd sw708-equipo-3
-cd src/repo/app
+docker compose up --build
 ```
 
-### 2. Opción A — Docker Compose (recomendada)
+Con Podman:
 
 ```bash
-cp .env.example .env   # opcional: ajustar credenciales
-docker compose up -d --build
+podman compose up --build
 ```
 
 | Servicio | URL |
@@ -73,16 +74,25 @@ docker compose up -d --build
 | Frontend | http://localhost:3000 |
 | Backend | http://localhost:3001 |
 | PostgreSQL | red interna `db:5432` |
+| VictoriaMetrics | http://localhost:8428 |
 
-Datos de prueba (seed), desde `src/repo`:
+Evidencia: el sistema respondiendo tras un clon limpio, sin `.env` y con volúmenes vacíos (`db` y `victoriametrics` en *healthy*; `GET /auth/roles` → `200`).
+
+![Sistema respondiendo tras clon limpio](./semana-11/assets/captura-clon-limpio.png)
+
+### Datos de prueba (opcional)
+
+Con el stack raíz en ejecución, lanza el seed desde la raíz del repositorio:
 
 ```bash
-./scripts/poblamiento_datos/seed.sh
+SEED_DB_NETWORK=sw708_default ./src/repo/scripts/poblamiento_datos/seed.sh
 ```
 
 Credencial de demo: `admin@demo.com` / `Admin123!`
 
-### 3. Opción B — Desarrollo local (pnpm)
+### Desarrollo local con pnpm (opcional)
+
+Requisitos: **Node.js ≥ 20.9** y **pnpm ≥ 9**.
 
 Desde `src/repo/app`, con PostgreSQL disponible:
 
@@ -95,7 +105,7 @@ pnpm build
 pnpm test
 ```
 
-### 4. CI local (misma regla que GitHub Actions)
+### CI local (misma regla que GitHub Actions)
 
 ```bash
 cd src/repo/app
