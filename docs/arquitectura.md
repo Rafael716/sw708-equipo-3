@@ -133,7 +133,7 @@ Reescribimos los escenarios con las seis partes del formato (fuente, estímulo, 
 | **Fuente** | Operador de Monitoreo o de Gestión Marítima. Registra una incidencia crítica en tránsito (grado de severidad máximo). |
 | **Artefacto** | Caso de uso de registro de incidencias y tabla de auditoría. |
 | **Entorno** | Operación en curso bajo contingencia. |
-| **Respuesta** | Registro inmutable con `usuario_id` y `timestamp`, y notificación automática a los supervisores. |
+| **Respuesta** | Alta con `usuario_id` y `timestamp` inmutables; edición posterior solo de contenido operativo (sin borrar la incidencia); notificación automática a supervisores si la severidad es crítica. |
 | **Medida** | 100 % de las incidencias críticas auditables, verificado en la base de datos. |
 | **Instrumento** | Consulta SQL directa que verifica que los campos de auditoría obligatorios no sean nulos. |
 
@@ -170,7 +170,7 @@ Puntuamos cada escenario en impacto para el negocio (qué pasa si no se cumple) 
 | Escenario | Impacto | Dificultad | Prioridad | Decisión que lo atiende |
 |---|---|---|---|---|
 | E1 Interoperabilidad | 3 | 3 | Alta | ADR-0001: monolito modular con esquemas coordinados en PostgreSQL. |
-| E3 Seguridad y auditabilidad | 3 | 2 | Alta | Rodaja vertical de Incidencias: registro inmutable (usuario + timestamp), operación activa y notificación a supervisores en severidad 5 (ADR-0003). |
+| E3 Seguridad y auditabilidad | 3 | 2 | Alta | Rodaja de Incidencias: alta con usuario + timestamp inmutables, operación activa, notificación en severidad 5; sin borrado de incidencias (ADR-0003 / RN-08). |
 | E4 Mantenibilidad | 3 | 1 | Alta | ADR-0001 y regla de arquitectura en dependency-cruiser. |
 | E2 Fiabilidad | 2 | 3 | Media | Consulta SQL de la última posición válida (`GpsService`) y health check del endpoint; la serie histórica no se reescribe. |
 | E5 Usabilidad | 2 | 1 | Media | Frontend unificado en Next.js con mapas Leaflet. |

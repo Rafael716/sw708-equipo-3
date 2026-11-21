@@ -66,10 +66,6 @@ export default function IncidenciasPage() {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [incidenciaActual, setIncidenciaActual] = useState<Incidencia | null>(null);
 
-  // Modal eliminar
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [incidenciaEliminar, setIncidenciaEliminar] = useState<string | null>(null);
-
   const limite = 10;
 
   useEffect(() => {
@@ -155,38 +151,6 @@ export default function IncidenciasPage() {
     setModoEdicion(true);
     setIncidenciaActual(incidencia);
     setShowModal(true);
-  };
-
-  const handleEliminarIncidencia = (id: string) => {
-    setIncidenciaEliminar(id);
-    setShowDeleteModal(true);
-  };
-
-  const confirmarEliminar = () => {
-    if (!incidenciaEliminar) return;
-
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-    fetch(`${API_URL}/monitoreo/incidencias/${incidenciaEliminar}`, {
-      method: "DELETE",
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          return res
-            .json()
-            .catch(() => ({}))
-            .then((err) => {
-              throw new Error(err.message || `Error ${res.status}`);
-            });
-        }
-        setShowDeleteModal(false);
-        setIncidenciaEliminar(null);
-        cargarDatos();
-      })
-      .catch((err) => console.error("Error al eliminar incidencia:", err));
   };
 
   const getSeveridadColor = (severidad: number) => {
@@ -500,13 +464,6 @@ export default function IncidenciasPage() {
                               >
                                 <span className="material-symbols-outlined text-lg">edit</span>
                               </button>
-                              <button
-                                onClick={() => handleEliminarIncidencia(incidencia.id_incidencia)}
-                                className="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50"
-                                title="Eliminar"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -648,32 +605,6 @@ export default function IncidenciasPage() {
             cargarDatos();
           }}
         />
-      )}
-
-      {/* Modal Eliminar */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold text-zinc-900">Confirmar Eliminación</h3>
-            <p className="mb-6 text-sm text-zinc-600">
-              ¿Estás seguro de que deseas eliminar esta incidencia? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="flex-1 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmarEliminar}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

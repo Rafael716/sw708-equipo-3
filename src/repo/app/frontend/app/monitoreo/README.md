@@ -139,11 +139,13 @@ Pantallas principales:
 - `page.tsx`:
   - Vista de **lista de incidencias** con filtros por tipo, estado, severidad, rango de fechas, contenedor u operación.
   - Permite ordenar, ver estado de atención y navegar al detalle.
+  - Permite **editar** incidencias existentes (contenido operativo).
+  - **No** permite eliminar incidencias (RN-08: registro de auditoría sin borrado).
   - Consume principalmente `GET /monitoreo/incidencias` y endpoints afines.
 
 - `[id]/page.tsx`:
   - **Detalle de una incidencia**: muestra datos completos de la incidencia, su línea de tiempo, el contenedor/operación afectada y el usuario que la registró.
-  - Puede incluir acciones para actualizar estado, cerrar la incidencia o agregar comentarios, según lo implementado.
+  - Puede incluir acciones para actualizar estado o cerrar la incidencia (edición de estado, no borrado) y agregar comentarios, según lo implementado.
 
 Esta sección está alineada con los endpoints del backend protegidos con `JwtAuthGuard` (por ejemplo, creación/actualización de incidencias). El frontend representa las reglas de negocio definidas allí (quién puede crear, estados válidos de cierre, etc.).
 

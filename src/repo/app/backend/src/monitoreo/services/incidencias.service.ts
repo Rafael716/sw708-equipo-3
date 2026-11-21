@@ -18,7 +18,6 @@ export interface UpdateIncidenciaDto {
   descripcion?: string;
   grado_severidad?: number;
   id_estado_incidencia?: string;
-  id_usuario?: string;
 }
 
 @Injectable()
@@ -111,7 +110,7 @@ export class IncidenciasService {
   /**
    * Rodaja vertical Lab06: el POST de incidencias usa RegistrarIncidenciaUseCase
    * + IncidenciasTypeormAdapter. Este create queda como legado / respaldo;
-   * listar, update y delete siguen aquí.
+   * listar y update siguen aquí; delete ya no.
    */
   async create(data: CreateIncidenciaDto) {
     try {
@@ -161,55 +160,58 @@ export class IncidenciasService {
     }
   }
 
-  async update(id: string, data: UpdateIncidenciaDto) {
+  async update(id: string, data: UpdateIncidenciaDto = {}) {
     try {
       const incidencia = await this.findOne(id);
 
-      // Validar tipo de incidencia si se proporciona
       if (data.id_tipo_incidencia) {
         const tipoExists = await this.tipoIncidenciaRepository.findOne({
           where: { id_tipo_incidencia: data.id_tipo_incidencia },
         });
-
         if (!tipoExists) {
           throw new BadRequestException('Tipo de incidencia no válido');
         }
       }
 
-      // Validar estado de incidencia si se proporciona
       if (data.id_estado_incidencia) {
         const estadoExists = await this.estadoIncidenciaRepository.findOne({
           where: { id_estado_incidencia: data.id_estado_incidencia },
         });
-
         if (!estadoExists) {
           throw new BadRequestException('Estado de incidencia no válido');
         }
       }
 
-      await this.incidenciaRepository.update(id, data);
+      const payload: UpdateIncidenciaDto = {};
+      if (data.id_tipo_incidencia !== undefined) {
+        payload.id_tipo_incidencia = data.id_tipo_incidencia;
+      }
+      if (data.descripcion !== undefined) {
+        payload.descripcion = data.descripcion;
+      }
+      if (data.grado_severidad !== undefined) {
+        payload.grado_severidad = data.grado_severidad;
+      }
+      if (data.id_estado_incidencia !== undefined) {
+        payload.id_estado_incidencia = data.id_estado_incidencia;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        return incidencia;
+      }
+
+      await this.incidenciaRepository.update(id, payload);
 
       return await this.findOne(id);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
       console.error('Error en update incidencia:', error.message);
       throw new Error('Error al actualizar la incidencia');
-    }
-  }
-
-  async remove(id: string) {
-    try {
-      const incidencia = await this.findOne(id);
-      await this.incidenciaRepository.remove(incidencia);
-      return { message: 'Incidencia eliminada correctamente' };
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      console.error('Error en remove incidencia:', error.message);
-      throw new Error('Error al eliminar la incidencia');
     }
   }
 
