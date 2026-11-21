@@ -116,14 +116,14 @@ El módulo **Monitoreo** proporciona una vista transversal del estado de las ope
 ### 4.3. Flujo: Registrar y gestionar incidencias
 
 1. Desde la vista de una operación o una pantalla de incidencias, el usuario registra una incidencia.
-2. El frontend envía `POST /monitoreo/incidencias` con los datos de la incidencia y el JWT del usuario. El alta canónica es `POST /v1/incidencias`.
-3. `IncidenciasController` aplica `JwtAuthGuard` y extrae `id_usuario` del token.
-4. `IncidenciasService.create` valida y registra la incidencia enlazándola a:
+2. El frontend envía `POST /v1/incidencias` con los datos de la incidencia y el JWT del usuario.
+3. `IncidenciasV1Controller` aplica `JwtAuthGuard`, extrae `id_usuario` del token y delega en `RegistrarIncidenciaUseCase`.
+4. `RegistrarIncidenciaUseCase` valida y registra la incidencia enlazándola a:
    - La operación (`id_operacion`).
    - El tipo de incidencia (`id_tipo_incidencia`).
-   - El estado inicial (`id_estado_incidencia`).
+   - El estado inicial.
    - El usuario que la registró.
-5. Para consultar incidencias y sus estadísticas:
+5. El controlador legado `IncidenciasController` (`/monitoreo/incidencias`) no expone alta. Para consultar incidencias y sus estadísticas:
    - `GET /monitoreo/incidencias` con filtros.
    - `GET /monitoreo/incidencias/estadisticas` para métricas globales.
    - `GET /monitoreo/incidencias/tipos` y `GET /monitoreo/incidencias/estados` para catálogos.
@@ -199,10 +199,12 @@ A continuación, se listan los endpoints principales (no exhaustivo) del módulo
     - Lista estados de incidencia.
   - `GET /monitoreo/incidencias/:id`
     - Devuelve el detalle de una incidencia.
-  - `POST /monitoreo/incidencias` (protegido con `JwtAuthGuard`)
-    - Crea una nueva incidencia asociada a una operación y un usuario. El alta canónica es `POST /v1/incidencias`.
   - `PUT /monitoreo/incidencias/:id` (protegido)
     - Actualiza contenido operativo (tipo, descripción, severidad, estado). No modifica `id_usuario` ni `fecha_hora`.
+
+- **Alta de incidencias** (`IncidenciasV1Controller` → `RegistrarIncidenciaUseCase`)
+  - `POST /v1/incidencias` (protegido con `JwtAuthGuard`)
+    - Crea una nueva incidencia asociada a una operación y al usuario del token. Es el único alta.
 
 - **Reportes** (`ReportesController`)
   - `GET /monitoreo/reportes`

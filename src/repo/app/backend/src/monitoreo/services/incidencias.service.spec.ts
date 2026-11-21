@@ -51,11 +51,9 @@ describe('IncidenciasService.update (RN-08)', () => {
       grado_severidad: 4,
       id_tipo_incidencia: 'tipo-2',
       id_estado_incidencia: 'estado-2',
-      // @ts-expect-error campos de auditoría no forman parte del DTO público
       id_usuario: 'atacante',
-      // @ts-expect-error
       fecha_hora: new Date('2099-01-01T00:00:00.000Z'),
-    });
+    } as never);
 
     expect(incidenciaRepository.update).toHaveBeenCalledWith('inc-1', {
       descripcion: 'Actualizada',
