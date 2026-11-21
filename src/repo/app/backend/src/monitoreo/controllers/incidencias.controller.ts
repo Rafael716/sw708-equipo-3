@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Put,
-  Delete,
   Body,
   Param,
   Query,
@@ -47,11 +46,5 @@ export class IncidenciasController {
   @UseGuards(JwtAuthGuard)
   update(@Param('id') id: string, @Body() data: UpdateIncidenciaDto) {
     return this.incidenciasService.update(id, data);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.incidenciasService.remove(id);
   }
 }
