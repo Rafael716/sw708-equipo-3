@@ -66,8 +66,7 @@ El módulo **Monitoreo** proporciona una vista transversal del estado de las ope
 - **Gestión de incidencias**
   - Registrar incidencias asociadas a una operación.
   - Consultar incidencias con filtros y estadísticas.
-  - Actualizar el estado y la información de una incidencia.
-  - Eliminar incidencias si es necesario.
+  - Actualizar el estado y la información operativa de una incidencia (sin eliminar).
 
 - **Gestión de reportes**
   - Crear reportes manuales.
@@ -117,7 +116,7 @@ El módulo **Monitoreo** proporciona una vista transversal del estado de las ope
 ### 4.3. Flujo: Registrar y gestionar incidencias
 
 1. Desde la vista de una operación o una pantalla de incidencias, el usuario registra una incidencia.
-2. El frontend envía `POST /monitoreo/incidencias` con los datos de la incidencia y el JWT del usuario.
+2. El frontend envía `POST /monitoreo/incidencias` con los datos de la incidencia y el JWT del usuario. El alta canónica es `POST /v1/incidencias`.
 3. `IncidenciasController` aplica `JwtAuthGuard` y extrae `id_usuario` del token.
 4. `IncidenciasService.create` valida y registra la incidencia enlazándola a:
    - La operación (`id_operacion`).
@@ -201,11 +200,9 @@ A continuación, se listan los endpoints principales (no exhaustivo) del módulo
   - `GET /monitoreo/incidencias/:id`
     - Devuelve el detalle de una incidencia.
   - `POST /monitoreo/incidencias` (protegido con `JwtAuthGuard`)
-    - Crea una nueva incidencia asociada a una operación y un usuario.
+    - Crea una nueva incidencia asociada a una operación y un usuario. El alta canónica es `POST /v1/incidencias`.
   - `PUT /monitoreo/incidencias/:id` (protegido)
-    - Actualiza una incidencia existente.
-  - `DELETE /monitoreo/incidencias/:id` (protegido)
-    - Elimina una incidencia.
+    - Actualiza contenido operativo (tipo, descripción, severidad, estado). No modifica `id_usuario` ni `fecha_hora`.
 
 - **Reportes** (`ReportesController`)
   - `GET /monitoreo/reportes`
@@ -269,8 +266,8 @@ Algunas reglas de negocio clave del módulo de Monitoreo son:
   - Al eliminar una operación se eliminan previamente las relaciones para no violar restricciones de integridad referencial.
 
 - **Seguridad y autenticación**
-  - Las operaciones sobre incidencias (crear, actualizar, eliminar) están protegidas con `JwtAuthGuard`.
-  - El `id_usuario` se obtiene a partir del token JWT para registrar quién crea o modifica una incidencia.
+  - Las operaciones sobre incidencias (crear y actualizar) están protegidas con `JwtAuthGuard`. No hay borrado de incidencias.
+  - El `id_usuario` se obtiene a partir del token JWT al crear la incidencia y no cambia en la actualización.
 
 - **Procesos batch y analytics**
   - La ejecución de procesos de cierre diario o de rango de días se realiza mediante funciones SQL en esquemas analíticos (`monitoreo_analytics`).
