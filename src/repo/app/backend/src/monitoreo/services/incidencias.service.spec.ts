@@ -71,6 +71,16 @@ describe('IncidenciasService.update (RN-08)', () => {
     );
   });
 
+  it('no llama a repository.update si el body solo trae campos de auditoría', async () => {
+    const resultado = await service.update('inc-1', {
+      id_usuario: 'atacante',
+      fecha_hora: new Date('2099-01-01T00:00:00.000Z'),
+    } as never);
+
+    expect(incidenciaRepository.update).not.toHaveBeenCalled();
+    expect(resultado).toBe(incidenciaExistente);
+  });
+
   it('no expone remove (método eliminado)', () => {
     expect(
       (service as unknown as { remove?: unknown }).remove,

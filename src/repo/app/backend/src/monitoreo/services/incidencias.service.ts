@@ -160,9 +160,9 @@ export class IncidenciasService {
     }
   }
 
-  async update(id: string, data: UpdateIncidenciaDto) {
+  async update(id: string, data: UpdateIncidenciaDto = {}) {
     try {
-      await this.findOne(id);
+      const incidencia = await this.findOne(id);
 
       if (data.id_tipo_incidencia) {
         const tipoExists = await this.tipoIncidenciaRepository.findOne({
@@ -194,6 +194,10 @@ export class IncidenciasService {
       }
       if (data.id_estado_incidencia !== undefined) {
         payload.id_estado_incidencia = data.id_estado_incidencia;
+      }
+
+      if (Object.keys(payload).length === 0) {
+        return incidencia;
       }
 
       await this.incidenciaRepository.update(id, payload);
