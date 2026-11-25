@@ -11,8 +11,14 @@ export class GpsController {
   }
 
   @Get('contenedores')
-  getPosicionesContenedores() {
-    return this.gpsService.getPosicionesContenedores();
+  getPosicionesContenedores(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.gpsService.getPosicionesContenedores(
+      limit ? parseInt(limit, 10) : 50,
+      offset ? parseInt(offset, 10) : 0,
+    );
   }
 
   @Get('contenedores/:id/ultima')
@@ -27,7 +33,7 @@ export class GpsController {
   ) {
     return this.gpsService.getHistorialPosicionesContenedor(
       id,
-      limit ? parseInt(limit) : 50,
+      limit ? parseInt(limit, 10) : 50,
     );
   }
 }
