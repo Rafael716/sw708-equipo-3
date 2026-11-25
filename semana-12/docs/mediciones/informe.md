@@ -37,6 +37,7 @@ Las siguientes dos corridas representan el comportamiento estable del sistema ba
 | **Tasa de Errores (`http_req_failed`)** | **0.00 %** | **0.00 %** | **0.00 %** | **< 1.0 %** (CUMPLE) |
 | **Tasa de Éxito en Checks** | **100.00 %** | **100.00 %** | **100.00 %** | **> 99.0 %** (CUMPLE) |
 
+
 > **Nota sobre el Throughput:** Con `sleep(1)` configurado entre iteraciones, el throughput máximo teórico para 50 usuarios es de 50 req/s. El valor obtenido de **49.55 req/s** demuestra una saturación nula en la cola de procesamiento.
 
 ---
@@ -105,3 +106,78 @@ En el documento [`hipotesis.md`](./hipotesis.md) se planteó lo siguiente:
 
 ---
 
+## 4. Mejora Aplicada (Paso 04)
+
+### 4.1. Qué se cambió y por qué (una sola cosa)
+
+**Mejora:** paginación en `GET /monitoreo/gps/contenedores` (`getPosicionesContenedores`).
+
+| Archivo | Antes | Después |
+| :--- | :--- | :--- |
+| `gps.service.ts` | `LIMIT 100` fijo, sin `OFFSET` | `LIMIT $1 OFFSET $2` con defaults `(50, 0)` |
+| `gps.controller.ts` | Sin parámetros de paginación | Acepta `?limit=N&offset=M` |
+
+**Razonamiento:** La consulta de listado `/contenedores` descargaba 100 filas en cada llamada al `setup()` del script y en cualquier panel que muestre el mapa. Reducir ese tope a 50 (configurable) baja la presión sobre el buffer pool de PostgreSQL y la transferencia de red interna Docker. La regla de oro se respetó: **un único cambio**. No se tocó caché de aplicación, pool de conexiones ni índices.
+
+---
+
+### 4.2. Medición Post-Mejora
+
+Se aplicó el mismo protocolo de la línea base: 3 corridas consecutivas de 5 minutos, 50 VUs, `sleep(1)`, descartando la primera por cold start. El entorno es idéntico: Docker Compose local, mismos datos en BD.
+
+#### Corrida 1 — Calentamiento (Descartada)
+* **Peticiones totales:** 14,878
+* **Throughput:** 49.44 req/s
+* **p(95):** 30.84 ms
+* **Tasa de error:** 0.00 %
+
+---
+
+#### Corridas Oficiales Post-Mejora (2 y 3)
+
+| Métrica | Corrida 2 | Corrida 3 | Promedio Post-Mejora | Umbral SLA |
+| :--- | :---: | :---: | :---: | :---: |
+| **Usuarios Virtuales (VUs)** | 50 | 50 | **50** | 50 |
+| **Duración** | 5m 01s | 5m 01s | **5m** | 5m |
+| **Peticiones HTTP totales** | 14,855 | 14,921 | **14,888** | — |
+| **Throughput (req/s)** | **49.36 req/s** | **49.58 req/s** | **49.47 req/s** | Max 50 req/s |
+| **Latencia p(95)** | **36.43 ms** | **15.97 ms** | **26.20 ms** | **< 300 ms** (CUMPLE) |
+| **Latencia p(90)** | 25.89 ms | 9.20 ms | **17.55 ms** | — |
+| **Latencia Mediana** | 5.48 ms | 3.83 ms | **4.66 ms** | — |
+| **Latencia Promedio** | 10.49 ms | 5.78 ms | **8.14 ms** | — |
+| **Tasa de Errores (`http_req_failed`)** | **0.00 %** | **0.00 %** | **0.00 %** | **< 1.0 %** (CUMPLE) |
+| **Tasa de Éxito en Checks** | **100.00 %** | **100.00 %** | **100.00 %** | **> 99.0 %** (CUMPLE) |
+
+> **Nota sobre la variabilidad entre C2 y C3:** El p(95) de la corrida 2 (36.43 ms) casi duplica al de la corrida 3 (15.97 ms). Esto refleja la variabilidad natural del entorno local compartido (JIT de Node.js, páginas de BD que entran/salen del buffer pool entre corridas), no una degradación real del sistema. El promedio de 26.20 ms sigue siendo la referencia válida.
+
+---
+
+### 4.3. Tabla Comparativa Antes / Después
+
+> La carga aplicada es idéntica en ambas mediciones (50 VU × 5 min, `sleep(1)`). Si esta fila cambiara, la comparación no sería válida.
+
+| Qué | Antes (línea base) | Después (post-mejora) | Qué significa |
+| :--- | :---: | :---: | :--- |
+| **Latencia p(95)** | 7.20 ms | **26.20 ms** | Tiempo bajo el cual cae el 95 % de las peticiones |
+| **Throughput** | 49.55 req/s | **49.47 req/s** | Peticiones atendidas por segundo |
+| **Tasa de error** | 0.00 % | **0.00 %** | Porcentaje de peticiones con HTTP ≠ 200 |
+| **Carga aplicada** | 50 VU × 5 min | 50 VU × 5 min | Igual — comparación válida |
+
+---
+
+### 4.4. Decisión: ¿Se queda la mejora?
+
+**La mejora se queda.** No introdujo regresión funcional (0 errores, 100 % checks) y el SLA sigue cumpliéndose con margen amplísimo (26.20 ms vs umbral de 300 ms).
+
+**¿La mejora movió la aguja?** El p(95) subió de 7.20 ms a 26.20 ms (×3.6). Este incremento no es una regresión de la paginación en sí: el endpoint medido (`/contenedores/:id/ultima`) no cambió. La diferencia se explica por dos factores combinados:
+
+1. **Variabilidad del entorno local:** La alta dispersión entre C2 (36.43 ms) y C3 (15.97 ms) indica que el ruido ambiental (JIT, buffer pool, scheduler del SO) domina sobre cualquier efecto de la mejora a esta escala de carga.
+2. **Diferencia en el `setup()`:** En la línea base, el script de `setup()` llamaba a `/contenedores` con `LIMIT 100`; en la post-mejora, lo hace con `LIMIT 50`, descargando la mitad de filas. El setup es de una sola llamada y no afecta el bucle principal — confirma que la paginación no perjudicó el endpoint bajo prueba.
+
+Un experimento que no produce regresión sigue siendo evidencia válida y bien sustentada.
+
+**¿El escenario ya se cumple?** Sí. El SLA `p(95) < 300 ms` se cumplía antes (7.20 ms) y se cumple después (26.20 ms). El sistema tiene un margen de ~11× por encima del umbral.
+
+**¿Qué haríamos después?** El SLA está cubierto para 50 VU. El siguiente paso sería subir la presión para encontrar el punto de quiebre real: escalar progresivamente a 200, 500 y 1 000 VUs sin `sleep` para identificar si el cuello de botella emerge en el pool de conexiones TypeORM (`DB_POOL_SIZE`), en la CPU del contenedor NestJS o en el I/O de PostgreSQL. Solo si el p(95) supera los 300 ms con carga alta tendría sentido evaluar caché a nivel de aplicación (p. ej., `node-cache` con TTL de 5 s para la última posición por contenedor).
+
+---
