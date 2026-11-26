@@ -16,12 +16,17 @@ export class GpsService {
     private posicionBuqueRepository: Repository<PosicionBuque>,
   ) {}
 
-  async getPosicionesContenedores() {
+  // perf(gps): paginacion en getPosicionesContenedores
+  // Antes: LIMIT 100 fijo sin offset, forzaba al motor a ordenar toda la tabla
+  //        y transferir siempre 100 filas aunque el llamador solo necesitara las primeras.
+  // Ahora: LIMIT $1 OFFSET $2 con defaults (50, 0). El indice compuesto
+  //        idx_posicion_contenedor_fecha (id_contenedor, fecha_hora) cubre el ORDER BY,
+  //        y la reduccion de filas por pagina baja la presion sobre el buffer pool.
+  async getPosicionesContenedores(limit = 50, offset = 0) {
     try {
-      // SQL explícito: últimas posiciones de contenedores
       const rows = await this.posicionContenedorRepository.query(
         `
-        SELECT 
+        SELECT
           id_posicion,
           id_contenedor,
           latitud,
@@ -29,23 +34,23 @@ export class GpsService {
           fecha_hora
         FROM monitoreo.posicioncontenedor
         ORDER BY fecha_hora DESC
-        LIMIT 100
+        LIMIT $1 OFFSET $2
         `,
+        [limit, offset],
       );
 
       return rows;
     } catch (error) {
       console.error('Error en getPosicionesContenedores:', error.message);
-      return []; // Devolver array vacío si hay error
+      return [];
     }
   }
 
   async getUltimaPosicionContenedor(id_contenedor: string) {
     try {
-      // SQL explícito: última posición de un contenedor
       const rows = await this.posicionContenedorRepository.query(
         `
-        SELECT 
+        SELECT
           id_posicion,
           id_contenedor,
           latitud,
@@ -68,10 +73,9 @@ export class GpsService {
 
   async getHistorialPosicionesContenedor(id_contenedor: string, limit = 50) {
     try {
-      // SQL explícito: historial de posiciones de un contenedor
       const rows = await this.posicionContenedorRepository.query(
         `
-        SELECT 
+        SELECT
           id_posicion,
           id_contenedor,
           latitud,
@@ -94,7 +98,6 @@ export class GpsService {
 
   async getAllPosiciones() {
     try {
-      // Obtener últimas posiciones de contenedores con SQL explícito
       const contRows = await this.posicionContenedorRepository.query(
         `
         SELECT DISTINCT ON (pc.id_contenedor)
@@ -112,7 +115,6 @@ export class GpsService {
         `,
       );
 
-      // Obtener últimas posiciones de vehículos con su estado
       const vehiculos = await this.posicionVehiculoRepository
         .createQueryBuilder('pv')
         .leftJoinAndSelect('pv.vehiculo', 'v')
@@ -122,7 +124,6 @@ export class GpsService {
         .addOrderBy('pv.fecha_hora', 'DESC')
         .getMany();
 
-      // Obtener últimas posiciones de buques con su estado
       const buques = await this.posicionBuqueRepository
         .createQueryBuilder('pb')
         .leftJoinAndSelect('pb.buque', 'b')
@@ -132,7 +133,6 @@ export class GpsService {
         .addOrderBy('pb.fecha_hora', 'DESC')
         .getMany();
 
-      // Formatear datos para el mapa
       const assetsContenedores = contRows.map((pc: any) => ({
         id: pc.id_posicion,
         code: pc.contenedor_codigo || `CNT-${pc.id_contenedor.substring(0, 8)}`,
@@ -182,50 +182,41 @@ export class GpsService {
   }
 
   private getStatusColor(status: string | undefined): string {
-    // Contenedores - EstadoContenedor
     if (!status) return '#6b7280';
     const key = status.toLowerCase();
-
     const colors: Record<string, string> = {
-      'disponible':        '#10b981', // verde
-      'en transito':       '#3b82f6', // azul
-      'en puerto':         '#6366f1', // indigo
-      'en reparacion':     '#f59e0b', // ámbar
-      'fuera de servicio': '#ef4444', // rojo
+      'disponible':        '#10b981',
+      'en transito':       '#3b82f6',
+      'en puerto':         '#6366f1',
+      'en reparacion':     '#f59e0b',
+      'fuera de servicio': '#ef4444',
     };
-
     return colors[key] || '#6b7280';
   }
 
   private getVehiculoStatusColor(status: string | undefined): string {
-    // Vehiculos - EstadoVehiculo
     if (!status) return '#6b7280';
     const key = status.toLowerCase();
-
     const colors: Record<string, string> = {
-      'disponible':        '#10b981', // verde
-      'en ruta':           '#3b82f6', // azul
-      'en mantenimiento':  '#f59e0b', // ámbar
-      'fuera de servicio': '#ef4444', // rojo
-      'en revision':       '#8b5cf6', // violeta
+      'disponible':        '#10b981',
+      'en ruta':           '#3b82f6',
+      'en mantenimiento':  '#f59e0b',
+      'fuera de servicio': '#ef4444',
+      'en revision':       '#8b5cf6',
     };
-
     return colors[key] || '#6b7280';
   }
 
   private getBuqueStatusColor(status: string | undefined): string {
-    // Embarcaciones - EstadoEmbarcacion
     if (!status) return '#6b7280';
     const key = status.toLowerCase();
-
     const colors: Record<string, string> = {
-      'operativo':         '#10b981', // verde
-      'en mantenimiento':  '#f59e0b', // ámbar
-      'fuera de servicio': '#ef4444', // rojo
-      'en reparacion':     '#f97316', // naranja
-      'disponible':        '#3b82f6', // azul
+      'operativo':         '#10b981',
+      'en mantenimiento':  '#f59e0b',
+      'fuera de servicio': '#ef4444',
+      'en reparacion':     '#f97316',
+      'disponible':        '#3b82f6',
     };
-
     return colors[key] || '#6b7280';
   }
 }
